@@ -1,0 +1,207 @@
+﻿using HomestayBookingAPI.Data;
+using HomestayBookingAPI.DTOs;
+using HomestayBookingAPI.Models;
+using HomestayBookingAPI.Services.ImageServices;
+using HomestayBookingAPI.Services.TopRatePlaceServices;
+using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
+
+namespace HomestayBookingAPI.Services.PlaceServices
+{
+    public class PlaceService : IPlaceService
+    {
+        private readonly ApplicationDbContext _context;
+        private readonly IImageService _imageService;
+        private readonly ITopRateService _topRateService;
+        private readonly ILogger<PlaceService> _logger;
+
+        public PlaceService(ApplicationDbContext context, IImageService imageService, ILogger<PlaceService> logger, ITopRateService topRateService)
+        {
+            _context = context;
+            _imageService = imageService;
+            _logger = logger;
+            _topRateService = topRateService;
+        }
+
+        public async Task<Place> AddPlaceAsync(Place place)
+        {
+            if(place == null)
+            {
+                throw new Exception("Place is null");
+            }
+
+            var validationPlace = new ValidationContext(place);
+            var validationResult = new List<ValidationResult>();
+            if (!Validator.TryValidateObject(place, validationPlace, validationResult, true))
+            {
+                throw new Exception("Dữ liệu không hợp lệ");
+            }
+            try
+            {
+                await _context.Places.AddAsync(place);
+                await _context.SaveChangesAsync();
+                return place;
+            }
+            catch (DbUpdateException ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
+
+        public async Task<List<PlaceDTO>> GetAllPlacesAsync()
+        {
+            try
+            {
+                var places = await _context.Places
+                    .Include(p => p.Images)
+                    .ToListAsync();
+
+                return places.Select(p => new PlaceDTO
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    Address = p.Address,
+                    Rating = p.Rating,
+                    NumOfRating = p.NumOfRating,
+                    Category = p.Category,
+                    Description = p.Description,
+                    Price = p.Price,
+                    Images = p.Images != null
+                        ? p.Images.Select(i => new PlaceImageDTO
+                        {
+                            Id = i.Id,
+                            ImageUrl = i.ImageUrl
+                        }).ToList()
+                        : new List<PlaceImageDTO>()
+                }).ToList();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Lỗi : ", ex);
+            }
+        }
+
+        public async Task<PlaceDTO> GetPlaceByID(int id)
+        {
+            var place =  await _context.Places
+                .Include(p => p.Images)
+                .FirstOrDefaultAsync(p => p.Id == id);
+            if(place == null)
+            {
+                throw new Exception("Place not found");
+            }
+            return new PlaceDTO
+            {
+                Id = place.Id,
+                Name = place.Name,
+                Address = place.Address,
+                Rating = place.Rating,
+                NumOfRating = place.NumOfRating,
+                Category = place.Category,
+                Description = place.Description,
+                Price = place.Price,
+                Images = place.Images.Select(i => new PlaceImageDTO
+                {
+                    Id = i.Id,
+                    ImageUrl = i.ImageUrl
+                }).ToList()
+            };
+        }
+
+        public async Task<List<PlaceDTO>> GetTopRatePlace(int limit)
+        {
+            var lastUpdate = await _context.TopRatePlaces
+                .OrderByDescending(trp => trp.LastUpdated)
+                .Select(trp => trp.LastUpdated)
+                .FirstOrDefaultAsync();
+
+            bool needUpdate = lastUpdate == default || lastUpdate.AddHours(5) < DateTime.Now;
+
+            if (needUpdate)
+            {
+                await _topRateService.UpdateTopRateAsync(limit);
+            }
+
+            var topRatePlaceID = await _context.TopRatePlaces
+                .OrderBy(trp => trp.Rank)
+                .Select(trp => trp.PlaceId)
+                .Take(limit)
+                .ToListAsync(); // lay id cua top rate places
+
+            var places = await _context.Places
+                .Include(p => p.Images)
+                .Where(p => topRatePlaceID.Contains(p.Id))
+                .ToListAsync(); // lay thong tin cua top rate places
+
+            places = topRatePlaceID.Select(id => places.First(p => p.Id == id)).ToList(); // sap xep lai theo thu tu top rate
+
+            return places.Select(p => new PlaceDTO
+            {
+                Id = p.Id,
+                Name = p.Name,
+                Address = p.Address,
+                Rating = p.Rating,
+                NumOfRating = p.NumOfRating,
+                Category = p.Category,
+                Description = p.Description,
+                Price = p.Price,
+                Images = p.Images.Select(i => new PlaceImageDTO
+                {
+                    Id = i.Id,
+                    ImageUrl = i.ImageUrl
+                }).ToList()
+            }).ToList();
+        }
+
+        public async Task<List<string>> UploadImagePlaceAsync(int placeId, List<IFormFile> images)
+        {
+            if (images == null || !images.Any())
+            {
+                _logger.LogError("Danh sách ảnh không được null hoặc rỗng.");
+                throw new ArgumentException("Danh sách ảnh không được null hoặc rỗng.");
+            }
+
+            var place = await GetPlaceByID(placeId);
+            if (place == null)
+            {
+                _logger.LogError("Place not found");
+                throw new Exception("Place not found");
+            }
+            
+            var uploadedImages = new List<string>();
+            foreach (var image in images)
+            {
+                try
+                {
+                    var imageUrl = await _imageService.UploadImageAsync(image);
+                    if (imageUrl == null)
+                    {
+                        _logger.LogError("Image not uploaded");
+                        throw new Exception("Image not uploaded");
+                        continue;
+                    }
+                    var placeImage = new PlaceImage
+                    {
+                        PlaceId = placeId,
+                        ImageUrl = imageUrl
+                    };
+                    await _context.PlaceImages.AddAsync(placeImage);
+                    await _context.SaveChangesAsync();
+                    uploadedImages.Add(imageUrl);
+                    _logger.LogInformation($"Image {imageUrl} uploaded successfully");
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception(ex.Message);
+                }
+            }
+            if (!uploadedImages.Any())
+            {
+                _logger.LogError("Không có ảnh nào được upload thành công.");
+                throw new Exception("Không có ảnh nào được upload thành công.");
+            }
+
+            return uploadedImages;
+        }
+    }
+}
