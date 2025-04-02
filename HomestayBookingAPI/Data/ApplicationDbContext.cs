@@ -10,6 +10,7 @@ namespace HomestayBookingAPI.Data
         public DbSet<TopRatePlaces> TopRatePlaces { get; set; }
         public DbSet<PlaceImage> PlaceImages { get; set; }
 
+
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
         {
@@ -35,6 +36,7 @@ namespace HomestayBookingAPI.Data
                 .WithOne(i => i.Place)
                 .HasForeignKey(i => i.PlaceId)
                 .OnDelete(DeleteBehavior.Cascade);
+
         }
 
         override protected void OnConfiguring(DbContextOptionsBuilder optionsBuilder)

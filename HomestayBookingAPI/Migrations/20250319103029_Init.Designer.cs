@@ -3,6 +3,7 @@ using System;
 using HomestayBookingAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HomestayBookingAPI.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250319103029_Init")]
+    partial class Init
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -30,12 +33,6 @@ namespace HomestayBookingAPI.Migrations
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("integer");
 
-                    b.Property<string>("AvatarUrl")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Bio")
-                        .HasMaxLength(1000)
-                        .HasColumnType("text");
                     b.Property<DateTime?>("BirthDate")
                         .HasColumnType("timestamp with time zone");
 
@@ -50,15 +47,7 @@ namespace HomestayBookingAPI.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("FullName")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("text");
-
-                    b.Property<int>("Gender")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("HomeAddress")
+                    b.Property<string>("HomeAdress")
                         .HasMaxLength(500)
                         .HasColumnType("text");
 
@@ -94,6 +83,12 @@ namespace HomestayBookingAPI.Migrations
                     b.Property<string>("UserName")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
+
+                    b.Property<string>("fullName")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("NormalizedEmail")
@@ -288,12 +283,7 @@ namespace HomestayBookingAPI.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
-
-            modelBuilder.Entity("HomestayBookingAPI.Models.Place", b =>
-                {
-                    b.Navigation("Images");
-                });
-
+#pragma warning restore 612, 618
         }
     }
 }

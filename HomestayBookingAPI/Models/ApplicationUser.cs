@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
+
 namespace HomestayBookingAPI.Models
 {
     public class ApplicationUser : IdentityUser
@@ -28,5 +29,6 @@ namespace HomestayBookingAPI.Models
         [Column(TypeName = "text")]
         [StringLength(1000)]
         public string? Bio { get; set; }
+
     }
 }
