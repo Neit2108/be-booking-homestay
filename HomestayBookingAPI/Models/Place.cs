@@ -35,6 +35,9 @@ namespace HomestayBookingAPI.Models
         [Required]
         public double Price { get; set; }
 
+        [Required]
+        public int MaxGuests { get; set; }
+
         public List<PlaceImage> Images { get; set; } = new List<PlaceImage>(); // 1 - n với PlaceImage
     }
 }

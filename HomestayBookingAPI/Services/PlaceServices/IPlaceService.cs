@@ -13,6 +13,8 @@ namespace HomestayBookingAPI.Services.PlaceServices
 
         Task<List<PlaceDTO>> GetAllPlacesAsync();
 
+        Task<List<PlaceDTO>> GetSameCategoryPlaces(int id);
+
         Task<List<string>> UploadImagePlaceAsync(int placeId, List<IFormFile> files);
     }
 }

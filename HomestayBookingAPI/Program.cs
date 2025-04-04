@@ -4,6 +4,7 @@ using HomestayBookingAPI.Data;
 using HomestayBookingAPI.Models;
 using HomestayBookingAPI.Services;
 using HomestayBookingAPI.Services.AuthService;
+using HomestayBookingAPI.Services.BookingServices;
 using HomestayBookingAPI.Services.ImageServices;
 using HomestayBookingAPI.Services.PlaceServices;
 using HomestayBookingAPI.Services.ProfileServices;
@@ -80,6 +81,7 @@ builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IPlaceService, PlaceService>();
 builder.Services.AddScoped<ITopRateService, TopRateService>();
+builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<JwtService>();
 
 builder.Services.AddLogging(logging =>

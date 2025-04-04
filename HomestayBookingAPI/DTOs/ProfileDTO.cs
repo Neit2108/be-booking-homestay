@@ -1,4 +1,4 @@
-﻿using HomestayBookingAPI.Models;
+﻿using HomestayBookingAPI.Models.Enum;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 

@@ -34,19 +34,19 @@ namespace HomestayBookingAPI.Controllers
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDTO model)
-            {
+        {
             var loginReponse = await _authService.LoginUser(model);
             if (loginReponse == null)
             {
                 return BadRequest(new { message = "Đăng nhập không thành công" });
-        }
+            }
             return Ok(new
             {
                 token = loginReponse.Token,
                 fullName = loginReponse.FullName,
                 avatarUrl = loginReponse.AvatarUrl
             });
-            }
+        }
 
         //[HttpPost("logout")]
         //public async Task<IActionResult> Logout()

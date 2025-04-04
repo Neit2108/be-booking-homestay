@@ -5,6 +5,7 @@ using HomestayBookingAPI.Services.ImageServices;
 using HomestayBookingAPI.Services.TopRatePlaceServices;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
+using System.Numerics;
 
 namespace HomestayBookingAPI.Services.PlaceServices
 {
@@ -66,12 +67,15 @@ namespace HomestayBookingAPI.Services.PlaceServices
                     Category = p.Category,
                     Description = p.Description,
                     Price = p.Price,
+                    MaxGuests = p.MaxGuests,
                     Images = p.Images != null
                         ? p.Images.Select(i => new PlaceImageDTO
                         {
                             Id = i.Id,
                             ImageUrl = i.ImageUrl
-                        }).ToList()
+                        })
+                        .OrderBy(i => i.Id)
+                        .ToList()
                         : new List<PlaceImageDTO>()
                 }).ToList();
             }
@@ -100,12 +104,63 @@ namespace HomestayBookingAPI.Services.PlaceServices
                 Category = place.Category,
                 Description = place.Description,
                 Price = place.Price,
+                MaxGuests = place.MaxGuests,
                 Images = place.Images.Select(i => new PlaceImageDTO
                 {
                     Id = i.Id,
                     ImageUrl = i.ImageUrl
-                }).ToList()
+                })
+                .OrderBy(i => i.Id)
+                .ToList()
             };
+        }
+
+        public async Task<List<PlaceDTO>> GetSameCategoryPlaces(int id)
+        {
+            
+            try
+            {
+                var this_place = await _context.Places.FindAsync(id);
+
+                if(this_place == null)
+                {
+                    throw new Exception("Lew lew");
+                }
+
+                var sameCategoryPlaces = await _context.Places
+                    .Where(p => p.Category == this_place.Category && p.Id != id)
+                    .Include(p => p.Images)
+                    .Take(4)
+                    .ToListAsync();
+
+                return sameCategoryPlaces.Select(p => new PlaceDTO
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    Address = p.Address,
+                    Rating = p.Rating,
+                    NumOfRating = p.NumOfRating,
+                    Category = p.Category,
+                    Description = p.Description,
+                    Price = p.Price,
+                    MaxGuests = p.MaxGuests,
+                    Images = p.Images != null
+                        ? p.Images.Select(i => new PlaceImageDTO
+                        {
+                            Id = i.Id,
+                            ImageUrl = i.ImageUrl
+                        })
+                        .OrderBy(i => i.Id) 
+                        .ToList()
+                        : new List<PlaceImageDTO>()
+                }).ToList();
+
+            }
+            catch(Exception ex)
+            {
+                throw new Exception("Lỗi : ", ex);
+            }
+
         }
 
         public async Task<List<PlaceDTO>> GetTopRatePlace(int limit)
@@ -145,11 +200,14 @@ namespace HomestayBookingAPI.Services.PlaceServices
                 Category = p.Category,
                 Description = p.Description,
                 Price = p.Price,
+                MaxGuests = p.MaxGuests,
                 Images = p.Images.Select(i => new PlaceImageDTO
                 {
                     Id = i.Id,
                     ImageUrl = i.ImageUrl
-                }).ToList()
+                })
+                .OrderBy(i => i.Id) // sap xep lai theo thu tu id
+                .ToList()
             }).ToList();
         }
 

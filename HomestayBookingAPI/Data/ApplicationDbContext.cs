@@ -9,6 +9,8 @@ namespace HomestayBookingAPI.Data
         public DbSet<Place> Places { get; set; }
         public DbSet<TopRatePlaces> TopRatePlaces { get; set; }
         public DbSet<PlaceImage> PlaceImages { get; set; }
+        public DbSet<Booking> Bookings { get; set; }
+        public DbSet<PlaceAvailable> PlaceAvailables { get; set; }
 
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
@@ -18,6 +20,10 @@ namespace HomestayBookingAPI.Data
 
         override protected void OnModelCreating(ModelBuilder modelBuilder)
         {
+            //            foreach(var entityType in modelBuilder.Model.GetEntityTypes())
+            //{
+            //                Console.WriteLine($"EF is mapping: {entityType.Name} with CLR Type: {entityType.ClrType}");
+            //            }
             base.OnModelCreating(modelBuilder);
 
             // Xóa ASPNET ở đầu tên bảng

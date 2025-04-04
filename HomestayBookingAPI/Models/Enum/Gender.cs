@@ -1,4 +1,4 @@
-﻿namespace HomestayBookingAPI.Models
+﻿namespace HomestayBookingAPI.Models.Enum
 {
     public enum Gender
     {

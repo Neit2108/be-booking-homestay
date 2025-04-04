@@ -24,7 +24,6 @@ namespace HomestayBookingAPI.Controllers
 
         [HttpGet("profile")]
         [Authorize(AuthenticationSchemes = "Bearer")]
-        [ResponseCache(Duration = 60)]
         public async Task<IActionResult> GetProfile()
         {
             try

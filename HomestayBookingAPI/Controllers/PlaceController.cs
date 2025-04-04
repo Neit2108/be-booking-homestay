@@ -1,6 +1,7 @@
 ﻿using HomestayBookingAPI.DTOs;
 using HomestayBookingAPI.Models;
 using HomestayBookingAPI.Services.PlaceServices;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
@@ -30,7 +31,7 @@ namespace HomestayBookingAPI.Controllers
             return Ok(places);
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("place-details/{id}")]
         public async Task<ActionResult<PlaceDTO>> GetPlaceById(int id)
         {
             var place = await _placeService.GetPlaceByID(id);
@@ -48,7 +49,19 @@ namespace HomestayBookingAPI.Controllers
             return Ok(places);
         }
 
+        [HttpGet("get-same-category/{id}")]
+        public async Task<ActionResult<List<PlaceDTO>>> GetSameCategoryPlaces(int id)
+        {
+            var sameCategoryPlaces = await _placeService.GetSameCategoryPlaces(id);
+            if (sameCategoryPlaces == null || sameCategoryPlaces.Count == 0)
+            {
+                return NotFound($"Không tìm thấy danh sách địa điểm cùng loại với Id {id}.");
+            }
+            return Ok(sameCategoryPlaces);
+        }
+
         [HttpPost("add-place")]
+        [Authorize(Roles = "Admin, Lanlord")]
         public async Task<ActionResult<Place>> AddPlace([FromBody] Place place)
         {
             if (place == null)
