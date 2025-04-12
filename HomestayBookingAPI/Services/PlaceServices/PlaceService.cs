@@ -85,6 +85,43 @@ namespace HomestayBookingAPI.Services.PlaceServices
             }
         }
 
+        public async Task<List<PlaceDTO>> GetAllPlacesOfLandlord(string landlordId)
+        {
+            try
+            {
+                var places = await _context.Places
+                .Include(p => p.Images)
+                .Where(p => p.OwnerId == landlordId)
+                .ToListAsync();
+                return places.Select(p => new PlaceDTO
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    Address = p.Address,
+                    Rating = p.Rating,
+                    NumOfRating = p.NumOfRating,
+                    Category = p.Category,
+                    Description = p.Description,
+                    Price = p.Price,
+                    MaxGuests = p.MaxGuests,
+                    Images = p.Images != null
+                            ? p.Images.Select(i => new PlaceImageDTO
+                            {
+                                Id = i.Id,
+                                ImageUrl = i.ImageUrl
+                            })
+                            .OrderBy(i => i.Id)
+                            .ToList()
+                            : new List<PlaceImageDTO>()
+                }).ToList();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Lỗi : ", ex);
+            }
+
+        }
+
         public async Task<PlaceDTO> GetPlaceByID(int id)
         {
             var place =  await _context.Places

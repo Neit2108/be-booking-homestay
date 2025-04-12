@@ -1,5 +1,6 @@
 ﻿using HomestayBookingAPI.DTOs;
 using HomestayBookingAPI.Models;
+using HomestayBookingAPI.Services.JwtServices;
 using Microsoft.AspNetCore.Identity;
 using System.Text.RegularExpressions;
 
@@ -9,9 +10,9 @@ namespace HomestayBookingAPI.Services.AuthService
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
-        private readonly JwtService _jwtService;
+        private readonly IJwtService _jwtService;
 
-        public AuthService(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, JwtService jwtService)
+        public AuthService(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, IJwtService jwtService)
         {
             _userManager = userManager;
             _signInManager = signInManager;
@@ -23,6 +24,7 @@ namespace HomestayBookingAPI.Services.AuthService
             var user = new ApplicationUser
             {
                 FullName = model.FullName,
+                IdentityCard = model.IdentityCard,
                 Email = model.Email,
                 PhoneNumber = model.PhoneNumber,
                 HomeAddress = model.HomeAddress,

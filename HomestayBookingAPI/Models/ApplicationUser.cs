@@ -13,6 +13,11 @@ namespace HomestayBookingAPI.Models
         [StringLength(500)]
         public string FullName { get; set; }
 
+        [Required]
+        [Column(TypeName = "text")]
+        [StringLength(12, MinimumLength = 12)]
+        public string IdentityCard { get; set; }
+
         [Column(TypeName = "text")]
         [StringLength(500)]
         public string? HomeAddress { get; set; }

@@ -32,7 +32,8 @@ namespace HomestayBookingAPI.Utils
                     FullName = "Admin",
                     HomeAddress = "Homies Stay",
                     BirthDate = DateTime.UtcNow,
-                    Bio = ""
+                    Bio = "",
+                    IdentityCard = "000000000000"
                 };
 
                 var result = await userManager.CreateAsync(newAdmin, "Admin@123");

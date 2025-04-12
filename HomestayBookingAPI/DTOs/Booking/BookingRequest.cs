@@ -1,4 +1,5 @@
-﻿using HomestayBookingAPI.Models.Enum;
+﻿using HomestayBookingAPI.Models;
+using HomestayBookingAPI.Models.Enum;
 
 namespace HomestayBookingAPI.DTOs.Booking
 {
@@ -10,6 +11,7 @@ namespace HomestayBookingAPI.DTOs.Booking
         public DateTime EndDate { get; set; }
         public int NumberOfGuests { get; set; }
         public double TotalPrice { get; set; }
+        public string? Voucher { get; set; }
         public BookingStatus Status { get; set; } = BookingStatus.Pending;
     }
 }

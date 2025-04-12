@@ -38,6 +38,12 @@ namespace HomestayBookingAPI.Models
         [Required]
         public int MaxGuests { get; set; }
 
+        [Required]
+        public string OwnerId { get; set; } 
+
+        [ForeignKey("OwnerId")]
+        public virtual ApplicationUser Owner { get; set; } // FK đến User
+
         public List<PlaceImage> Images { get; set; } = new List<PlaceImage>(); // 1 - n với PlaceImage
     }
 }

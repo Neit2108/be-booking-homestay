@@ -1,4 +1,5 @@
-﻿using HomestayBookingAPI.DTOs;
+﻿using HomestayBookingAPI.Data;
+using HomestayBookingAPI.DTOs;
 using HomestayBookingAPI.Services.ProfileServices;
 using HomestayBookingAPI.Services.UserServices;
 using Microsoft.AspNetCore.Authorization;
@@ -14,12 +15,14 @@ namespace HomestayBookingAPI.Controllers
         private readonly IUserService _userService;
         private readonly ILogger<UserController> _logger;
         private readonly IProfileService _profileService;
+        private readonly ApplicationDbContext _context;
 
-        public UserController(IUserService userService, ILogger<UserController> logger, IProfileService profileService)
+        public UserController(IUserService userService, ILogger<UserController> logger, IProfileService profileService, ApplicationDbContext context)
         {
             _userService = userService;
             _logger = logger;
             _profileService = profileService;
+            _context = context;
         }
 
         [HttpGet("profile")]
@@ -55,6 +58,7 @@ namespace HomestayBookingAPI.Controllers
                     message = "Lấy thông tin người dùng thành công",
                     data = new
                     {
+                        id = id,
                         name = user.FullName,
                         email = user.Email,
                         phone = user.PhoneNumber,
@@ -62,7 +66,12 @@ namespace HomestayBookingAPI.Controllers
                         birthday = user.BirthDate,
                         gender = user.Gender,
                         avatar = user.AvatarUrl,
-                        bio = user.Bio
+                        bio = user.Bio,
+                        identityCard = user.IdentityCard,
+                        role = _context.UserRoles
+                            .Where(ur => ur.UserId == id)
+                            .Join(_context.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => r.Name)
+                            .ToList()
                     }
                 });
             }
@@ -89,6 +98,8 @@ namespace HomestayBookingAPI.Controllers
 
             if (!success)
             {
+                _logger.LogWarning("Failed to update profile for user with ID {UserId}", id);
+                
                 return BadRequest();
             }
             
@@ -99,6 +110,7 @@ namespace HomestayBookingAPI.Controllers
                 message = "Update thành công",
                 data = new
                 {
+                    
                     name = updatedUser.FullName,
                     email = updatedUser.Email,
                     phone = updatedUser.PhoneNumber,
@@ -106,7 +118,8 @@ namespace HomestayBookingAPI.Controllers
                     birthday = updatedUser.BirthDate,
                     gender = updatedUser.Gender,
                     avatar = updatedUser.AvatarUrl,
-                    bio = updatedUser.Bio
+                    bio = updatedUser.Bio,
+                    identityCard = updatedUser.IdentityCard
                 }
 
             });

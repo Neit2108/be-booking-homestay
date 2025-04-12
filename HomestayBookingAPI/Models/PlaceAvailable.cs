@@ -20,8 +20,8 @@ namespace HomestayBookingAPI.Models
         [Required]
         public bool IsAvailable { get; set; }
 
-        [Required]
-        public double Price { get; set; }
+        //[Required]
+        //public double Price { get; set; }
 
         [ForeignKey("PlaceId")]
         public virtual Place Place { get; set; }

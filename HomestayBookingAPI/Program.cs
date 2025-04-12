@@ -2,22 +2,28 @@
 using Hangfire.PostgreSql;
 using HomestayBookingAPI.Data;
 using HomestayBookingAPI.Models;
-using HomestayBookingAPI.Services;
 using HomestayBookingAPI.Services.AuthService;
 using HomestayBookingAPI.Services.BookingServices;
+using HomestayBookingAPI.Services.EmailServices;
 using HomestayBookingAPI.Services.ImageServices;
+using HomestayBookingAPI.Services.JwtServices;
+using HomestayBookingAPI.Services.NotifyServices;
+using HomestayBookingAPI.Services.OwnerServices;
 using HomestayBookingAPI.Services.PlaceServices;
 using HomestayBookingAPI.Services.ProfileServices;
 using HomestayBookingAPI.Services.TopRatePlaceServices;
 using HomestayBookingAPI.Services.UserServices;
+using HomestayBookingAPI.Services.VoucherServices;
 using HomestayBookingAPI.Utils;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -47,7 +53,11 @@ builder.Services.AddHangfire(config => config
     {
         options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"));
     }));
-builder.Services.AddHangfireServer();
+builder.Services.AddHangfireServer(options =>
+{
+    options.WorkerCount = 1;
+});
+GlobalJobFilters.Filters.Add(new AutomaticRetryAttribute { Attempts = 3 }); // gửi lại 3 lần nếu thất bại
 var configuration = builder.Configuration;
 
 var secretKey = Encoding.UTF8.GetBytes(configuration["JwtSettings:Secret"]);
@@ -70,6 +80,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
             RoleClaimType = ClaimTypes.Role
         };
+    }).AddCookie("HangfireCookie", options =>
+    {
+        options.Cookie.Name = "HangfireAuth";
+        options.LoginPath = "/admin/login";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // Bắt buộc dùng HTTPS
+        options.Cookie.SameSite = SameSiteMode.None; // Để dùng giữa domain khác nhau (5173 <-> 7284)
     });
 
 builder.Services.AddAuthorization();
@@ -82,7 +99,11 @@ builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IPlaceService, PlaceService>();
 builder.Services.AddScoped<ITopRateService, TopRateService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
-builder.Services.AddScoped<JwtService>();
+builder.Services.AddScoped<IOwnerService, OwnerService>();
+builder.Services.AddScoped<IVoucherService, VoucherService>();
+builder.Services.AddScoped<INotifyService, NotifyService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IJwtService, JwtService>();
 
 builder.Services.AddLogging(logging =>
 {
@@ -94,7 +115,11 @@ builder.Services.Configure<FormOptions>(options =>
 {
     options.MultipartBodyLengthLimit = 10 * 1024 * 1024; // 10MB
 });
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
@@ -113,17 +138,29 @@ using (var scope = app.Services.CreateScope())
     await SeedRole.InitializeRolesAndAdmin(roleManager, userManager);
 } // tạo role và admin mặc định
 
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(
+        Path.Combine(builder.Environment.ContentRootPath, "wwwroot/static")),
+    RequestPath = "/static"
+});
 app.UseCors("AllowAll");
 
 app.UseHttpsRedirection();
-app.UseHangfireDashboard();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new AuthorizationFilter() }, 
+});
 RecurringJob.AddOrUpdate<ITopRateService>(
     "update-top-rated-places",
     service => service.UpdateTopRateAsync(5),
     "0 0 * * *"); // Chạy lúc 00:00 mỗi ngày (cron expression)
-app.UseAuthentication();
-app.UseAuthorization();
+
 
 app.MapControllers();
 

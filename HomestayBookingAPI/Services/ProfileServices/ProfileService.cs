@@ -33,6 +33,7 @@ namespace HomestayBookingAPI.Services.ProfileServices
             user.BirthDate = model.BirthDate;
             user.Gender = model.Gender;
             user.Bio = model.Bio;
+            user.IdentityCard = model.IdentityCard;
 
             var res =  await _userManager.UpdateAsync(user);
             return res.Succeeded;

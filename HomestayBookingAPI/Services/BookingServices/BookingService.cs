@@ -1,9 +1,12 @@
-﻿using HomestayBookingAPI.Data;
+﻿using Hangfire;
+using HomestayBookingAPI.Data;
 using HomestayBookingAPI.DTOs.Booking;
 using HomestayBookingAPI.Models;
 using HomestayBookingAPI.Models.Enum;
+using HomestayBookingAPI.Services.NotifyServices;
 using HomestayBookingAPI.Services.PlaceServices;
 using HomestayBookingAPI.Services.UserServices;
+using HomestayBookingAPI.Services.VoucherServices;
 using Microsoft.EntityFrameworkCore;
 
 namespace HomestayBookingAPI.Services.BookingServices
@@ -14,29 +17,48 @@ namespace HomestayBookingAPI.Services.BookingServices
         private readonly ILogger<BookingService> _logger;
         private readonly IPlaceService _placeService;
         private readonly IUserService _userService;
+        private readonly IVoucherService _voucherService;
+        private readonly INotifyService _notifyService;
 
-        public BookingService(ApplicationDbContext context, ILogger<BookingService> logger, IPlaceService placeService, IUserService userService)
+        public BookingService(ApplicationDbContext context, ILogger<BookingService> logger, IPlaceService placeService, IUserService userService, IVoucherService voucherService, INotifyService notifyService)
         {
             _context = context;
             _logger = logger;
             _placeService = placeService;
             _userService = userService;
+            _voucherService = voucherService;
+            _notifyService = notifyService;
         }
 
-        public async Task<double> CalculateTotalPriceAsync(int placeId, DateTime startDate, DateTime endDate, int numberOfGuests)
+        public async Task<double> CalculateTotalPriceAsync(BookingRequest bookingRequest)
         {
-            int numberOfDays = (endDate - startDate).Days;
+            var endDate = bookingRequest.EndDate.Date;
+            var startDate = bookingRequest.StartDate.Date;
+            int numberOfDays = (endDate - startDate).Days + 1;
+            if (startDate == endDate)
+            {
+                numberOfDays = 1;
+            }
+                
             if (numberOfDays <= 0)
             {
                 throw new ArgumentException("End date must be after start date");
             }
-            var place = await _placeService.GetPlaceByID(placeId);
+            var place = await _placeService.GetPlaceByID(bookingRequest.PlaceId);
             var pricePerNight = place.Price;
+            _logger.LogDebug($"Giá tiền mỗi đêm của địa điểm {bookingRequest.PlaceId} là : {pricePerNight}");
             var totalPrice = pricePerNight * numberOfDays;
-            if(numberOfGuests > place.MaxGuests)
+            _logger.LogDebug($"Total price: {totalPrice}");
+            _logger.LogDebug($"Số ngày {numberOfDays}");
+            if(bookingRequest.NumberOfGuests >= 3)
             {
-                totalPrice += (numberOfGuests - place.MaxGuests) * 1.5 * numberOfDays;
+                totalPrice += totalPrice * 0.3;
             }
+            if ((!string.IsNullOrEmpty(bookingRequest.Voucher)) && (await _voucherService.CheckVoucherAvailable(bookingRequest.Voucher) != null))
+            {
+                totalPrice = await _voucherService.ApplyVoucherAsync(bookingRequest.Voucher, totalPrice);
+            }
+            _logger.LogDebug($"Total price (after): {totalPrice}");
             return totalPrice;
 
         }
@@ -45,14 +67,12 @@ namespace HomestayBookingAPI.Services.BookingServices
         {
             try
             {
-                // Validation
-                if (startDate >= endDate)
+                if (startDate > endDate)
                 {
                     _logger.LogWarning("Invalid date range: StartDate {StartDate} must be earlier than EndDate {EndDate}", startDate, endDate);
                     throw new ArgumentException("StartDate must be earlier than EndDate");
                 }
 
-                // Kiểm tra xem place có tồn tại không
                 var placeExists = await _placeService.GetPlaceByID(placeId);
                 if (placeExists == null)
                 {
@@ -60,11 +80,9 @@ namespace HomestayBookingAPI.Services.BookingServices
                     throw new Exception("Place does not exist");
                 }
 
-                // Chuẩn hóa startDate và endDate (bỏ thời gian, chỉ lấy ngày)
                 var start = startDate.Date;
                 var end = endDate.Date;
-
-                // Kiểm tra tính khả dụng trong bảng PlaceAvailable
+   
                 var unavailableDays = await _context.PlaceAvailables
                     .Where(pa => pa.PlaceId == placeId &&
                                  pa.Date >= start &&
@@ -92,82 +110,109 @@ namespace HomestayBookingAPI.Services.BookingServices
         {
             if (bookingRequest == null)
             {
-                throw new ArgumentNullException(nameof(bookingRequest), "BookingDTO cannot be null");
+                throw new ArgumentNullException(nameof(bookingRequest), "Booking request cannot be null");
             }
-            if (bookingRequest.StartDate >= bookingRequest.EndDate)
+
+            if (string.IsNullOrEmpty(bookingRequest.UserId) || bookingRequest.PlaceId == null)
             {
-                throw new ArgumentException("StartDate must be earlier than EndDate");
+                throw new ArgumentException("UserId and PlaceId must be provided");
+            }
+
+            if (bookingRequest.NumberOfGuests <= 0)
+            {
+                throw new ArgumentException("Number of guests must be greater than zero");
+            }
+
+            if (bookingRequest.StartDate > bookingRequest.EndDate)
+            {
+                throw new ArgumentException("Start date must be earlier than end date");
             }
 
             var isAvailable = await CheckAvailabilityAsync(bookingRequest.PlaceId, bookingRequest.StartDate, bookingRequest.EndDate);
-
             if (!isAvailable)
             {
-                throw new Exception("Place is not available for the selected dates");
-            }
+                throw new InvalidOperationException($"Place {bookingRequest.PlaceId} is not available for the selected dates");
+            } //-> Check phòng trống
+
+            var booking = new Booking
+            {
+                UserId = bookingRequest.UserId,
+                PlaceId = bookingRequest.PlaceId,
+                StartDate = bookingRequest.StartDate,
+                EndDate = bookingRequest.EndDate,
+                NumberOfGuests = bookingRequest.NumberOfGuests,
+                TotalPrice = await CalculateTotalPriceAsync(bookingRequest),
+                Status = bookingRequest.Status,
+                PaymentStatus = PaymentStatus.Unpaid,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
                 var start = bookingRequest.StartDate.Date;
                 var end = bookingRequest.EndDate.Date;
 
-                var placeAvailables = await _context.PlaceAvailables
-                    .Where(pa => pa.PlaceId == bookingRequest.PlaceId &&
-                                 pa.Date >= start &&
-                                 pa.Date <= end)
-                    .ToListAsync();
+                // Các ngày đặt
+                var dateRange = Enumerable.Range(0, (end - start).Days + 1)
+                    .Select(d => start.AddDays(d))
+                    .ToList();
 
-                // Nếu không có bản ghi PlaceAvailable cho các ngày này, tạo mới
-                for (var date = start; date <= end; date = date.AddDays(1))
+                var placeAvailables = await _context.PlaceAvailables
+                    .Where(pa => pa.PlaceId == bookingRequest.PlaceId && dateRange.Contains(pa.Date))
+                    .ToDictionaryAsync(pa => pa.Date, pa => pa);
+
+                var updates = new List<PlaceAvailable>();
+                foreach (var date in dateRange)
                 {
-                    var existing = placeAvailables.FirstOrDefault(pa => pa.Date == date);
-                    if (existing == null)
-                    {
-                        _context.PlaceAvailables.Add(new PlaceAvailable
-                        {
-                            PlaceId = bookingRequest.PlaceId,
-                            Date = date,
-                            IsAvailable = false,
-                            Price = bookingRequest.TotalPrice / (end - start).Days // Giả sử giá chia đều cho các ngày
-                        });
-                    }
-                    else
+                    if (placeAvailables.TryGetValue(date, out var existing)) 
                     {
                         existing.IsAvailable = false;
                     }
+                    else
+                    {
+                        updates.Add(new PlaceAvailable
+                        {
+                            PlaceId = bookingRequest.PlaceId,
+                            Date = date,
+                            IsAvailable = false
+                        });
+                    }
                 }
-                var booking = new Booking
-                {
-                    UserId = bookingRequest.UserId,
-                    PlaceId = bookingRequest.PlaceId,
-                    StartDate = bookingRequest.StartDate,
-                    EndDate = bookingRequest.EndDate,
-                    NumberOfGuests = bookingRequest.NumberOfGuests,
-                    TotalPrice = await CalculateTotalPriceAsync(bookingRequest.PlaceId, bookingRequest.StartDate, bookingRequest.EndDate, bookingRequest.NumberOfGuests),
-                    Status = bookingRequest.Status,
-                    PaymentStatus = PaymentStatus.Unpaid,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
 
+                if (updates.Any())
+                {
+                    _context.PlaceAvailables.AddRange(updates);
+                }
+
+                _logger.LogDebug($"Giá tiền : {booking.TotalPrice}");
                 await _context.Bookings.AddAsync(booking);
                 await _context.SaveChangesAsync();
 
-                return new BookingResponse
-                {
-                    Id = booking.Id,
-                    UserId = booking.UserId,
-                    PlaceId = booking.PlaceId,
-                    StartDate = booking.StartDate,
-                    EndDate = booking.EndDate,
-                    NumberOfGuests = booking.NumberOfGuests,
-                    TotalPrice = booking.TotalPrice,
-                    Status = booking.Status
-                };
+                await _notifyService.CreateNewBookingNotificationAsync(booking, false); //tao thong bao
+
+                await transaction.CommitAsync();
             }
             catch (Exception ex)
             {
-                throw new Exception("Error creating booking", ex);
+                await transaction.RollbackAsync();
+                throw new InvalidOperationException("Failed to create booking due to an unexpected error", ex);
             }
+
+            BackgroundJob.Enqueue<INotifyService>(service => service.SendBookingEmailAsync(booking.Id));
+
+            return new BookingResponse
+            {
+                Id = booking.Id,
+                UserId = booking.UserId,
+                PlaceId = booking.PlaceId,
+                StartDate = booking.StartDate,
+                EndDate = booking.EndDate,
+                NumberOfGuests = booking.NumberOfGuests,
+                TotalPrice = booking.TotalPrice,
+                Status = booking.Status,
+            };
         }
 
         public async Task<bool> DeleteBookingAsync(int id)
@@ -191,6 +236,68 @@ namespace HomestayBookingAPI.Services.BookingServices
             {
                 throw new Exception("Error deleting booking", ex);
             }
+        }
+
+        public async Task<IEnumerable<BookingResponse>> GetAllBookingsAsync(
+            string? status = null,
+            DateTime? startDate = null,
+            DateTime? endDate = null,
+            int page = 1,
+            int pageSize = 10)
+        {
+            // Bắt đầu truy vấn
+            var query = _context.Bookings.AsQueryable();
+
+            // Áp dụng bộ lọc nếu có
+            if (!string.IsNullOrEmpty(status))
+            {
+                // Chuyển status từ string sang enum để lọc
+                if (Enum.TryParse<BookingStatus>(status, true, out var statusEnum))
+                {
+                    query = query.Where(b => b.Status == statusEnum);
+                }
+                else
+                {
+                    _logger.LogWarning($"Invalid status value: {status}");
+                    // Có thể throw exception hoặc bỏ qua bộ lọc
+                }
+            }
+            if (startDate.HasValue)
+            {
+                query = query.Where(b => b.StartDate >= startDate.Value);
+            }
+            if (endDate.HasValue)
+            {
+                query = query.Where(b => b.EndDate <= endDate.Value);
+            }
+
+            // Tính tổng số bản ghi
+            int totalRecords = await query.CountAsync();
+            _logger.LogInformation($"Found {totalRecords} bookings before pagination.");
+
+            // Áp dụng phân trang
+            query = query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize);
+
+            // Truy vấn và ánh xạ dữ liệu
+            var bookings = await query
+                .Select(b => new BookingResponse
+                {
+                    Id = b.Id,
+                    UserId = b.UserId,
+                    PlaceId = b.PlaceId,
+                    StartDate = b.StartDate,
+                    EndDate = b.EndDate,
+                    NumberOfGuests = b.NumberOfGuests,
+                    TotalPrice = b.TotalPrice,
+                    Status = b.Status,
+                    ImageUrl = b.Place.Images != null && b.Place.Images.Any() ? b.Place.Images.FirstOrDefault().ImageUrl : null
+                })
+                .ToListAsync();
+
+            _logger.LogInformation($"Returning {bookings.Count} bookings after applying filters and pagination.");
+            return bookings;
         }
 
         public async Task<BookingResponse> GetBookingByIdAsync(int id)
@@ -232,7 +339,8 @@ namespace HomestayBookingAPI.Services.BookingServices
                     EndDate = b.EndDate,
                     NumberOfGuests = b.NumberOfGuests,
                     TotalPrice = b.TotalPrice,
-                    Status = b.Status
+                    Status = b.Status,
+                    ImageUrl = place.Images != null && place.Images.Any() ? place.Images.FirstOrDefault().ImageUrl : null
                 })
                 .ToListAsync();
 
@@ -247,19 +355,27 @@ namespace HomestayBookingAPI.Services.BookingServices
         public async Task<IEnumerable<BookingResponse>> GetBookingsByUserIdAsync(string userId)
         {
             var bookings = await _context.Bookings
-                .Where(b => b.UserId == userId)
-                .Select(b => new BookingResponse
-                {
-                    Id = b.Id,
-                    UserId = b.UserId,
-                    PlaceId = b.PlaceId,
-                    StartDate = b.StartDate,
-                    EndDate = b.EndDate,
-                    NumberOfGuests = b.NumberOfGuests,
-                    TotalPrice = b.TotalPrice,
-                    Status = b.Status
-                })
-                .ToListAsync();
+                        .Where(b => b.UserId == userId)
+                        .GroupJoin(_context.Places,
+                            b => b.PlaceId,
+                            p => p.Id,
+                            (b, p) => new { Booking = b, Places = p }) 
+                        .SelectMany(x => x.Places.DefaultIfEmpty(),
+                            (x, p) => new BookingResponse
+                            {
+                                Id = x.Booking.Id,
+                                UserId = x.Booking.UserId,
+                                PlaceId = x.Booking.PlaceId,
+                                StartDate = x.Booking.StartDate,
+                                EndDate = x.Booking.EndDate,
+                                NumberOfGuests = x.Booking.NumberOfGuests,
+                                TotalPrice = x.Booking.TotalPrice,
+                                Status = x.Booking.Status,
+                                ImageUrl = p != null && p.Images != null && p.Images.Any()
+                                    ? p.Images.FirstOrDefault().ImageUrl
+                                    : null 
+                            }) 
+                        .ToListAsync();
 
             if (!bookings.Any())
             {

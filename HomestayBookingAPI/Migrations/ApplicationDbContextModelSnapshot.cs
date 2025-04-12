@@ -63,6 +63,11 @@ namespace HomestayBookingAPI.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("text");
 
+                    b.Property<string>("IdentityCard")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("text");
+
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("boolean");
 
@@ -98,12 +103,24 @@ namespace HomestayBookingAPI.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.HasIndex("IdentityCard")
+                        .IsUnique();
+
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
 
                     b.HasIndex("NormalizedUserName")
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex");
+
+                    b.HasIndex("PhoneNumber")
+                        .IsUnique();
+
+                    b.HasIndex("UserName")
+                        .IsUnique();
 
                     b.ToTable("Users", (string)null);
                 });
@@ -156,6 +173,63 @@ namespace HomestayBookingAPI.Migrations
                     b.ToTable("Bookings");
                 });
 
+            modelBuilder.Entity("HomestayBookingAPI.Models.Notification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("BookingId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("RecipientId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SenderId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookingId");
+
+                    b.HasIndex("RecipientId");
+
+                    b.HasIndex("SenderId");
+
+                    b.ToTable("Notifications");
+                });
+
             modelBuilder.Entity("HomestayBookingAPI.Models.Place", b =>
                 {
                     b.Property<int>("Id")
@@ -190,6 +264,10 @@ namespace HomestayBookingAPI.Migrations
                     b.Property<int>("NumOfRating")
                         .HasColumnType("integer");
 
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<double>("Price")
                         .HasColumnType("double precision");
 
@@ -197,6 +275,8 @@ namespace HomestayBookingAPI.Migrations
                         .HasColumnType("double precision");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OwnerId");
 
                     b.ToTable("Places");
                 });
@@ -217,9 +297,6 @@ namespace HomestayBookingAPI.Migrations
 
                     b.Property<int>("PlaceId")
                         .HasColumnType("integer");
-
-                    b.Property<double>("Price")
-                        .HasColumnType("double precision");
 
                     b.HasKey("Id");
 
@@ -276,6 +353,46 @@ namespace HomestayBookingAPI.Migrations
                     b.HasIndex("PlaceId");
 
                     b.ToTable("TopRatePlaces");
+                });
+
+            modelBuilder.Entity("HomestayBookingAPI.Models.Voucher", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<double>("Discount")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("From")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("MaxUsage")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("To")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("UsageCount")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("Vouchers");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -427,6 +544,42 @@ namespace HomestayBookingAPI.Migrations
                     b.Navigation("Place");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("HomestayBookingAPI.Models.Notification", b =>
+                {
+                    b.HasOne("HomestayBookingAPI.Models.Booking", "Booking")
+                        .WithMany()
+                        .HasForeignKey("BookingId");
+
+                    b.HasOne("HomestayBookingAPI.Models.ApplicationUser", "Recipient")
+                        .WithMany()
+                        .HasForeignKey("RecipientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HomestayBookingAPI.Models.ApplicationUser", "Sender")
+                        .WithMany()
+                        .HasForeignKey("SenderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("Recipient");
+
+                    b.Navigation("Sender");
+                });
+
+            modelBuilder.Entity("HomestayBookingAPI.Models.Place", b =>
+                {
+                    b.HasOne("HomestayBookingAPI.Models.ApplicationUser", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Owner");
                 });
 
             modelBuilder.Entity("HomestayBookingAPI.Models.PlaceAvailable", b =>

@@ -12,5 +12,6 @@ namespace HomestayBookingAPI.DTOs.Booking
         public int NumberOfGuests { get; set; }
         public double TotalPrice { get; set; }
         public BookingStatus Status { get; set; } = BookingStatus.Pending;
+        public string? ImageUrl { get; set; }
     }
 }

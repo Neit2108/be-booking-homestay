@@ -8,6 +8,9 @@ namespace HomestayBookingAPI.DTOs
         public string FullName { get; set; }
 
         [Required]
+        public string IdentityCard { get; set; }
+
+        [Required]
         [EmailAddress]
         public string Email { get; set; }
 
