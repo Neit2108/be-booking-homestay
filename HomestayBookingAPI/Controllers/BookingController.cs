@@ -1,11 +1,13 @@
 ﻿using HomestayBookingAPI.Data;
 using HomestayBookingAPI.DTOs.Booking;
+using HomestayBookingAPI.Models.Enum;
 using HomestayBookingAPI.Services.BookingServices;
 using HomestayBookingAPI.Services.PlaceServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace HomestayBookingAPI.Controllers
 {
@@ -16,12 +18,14 @@ namespace HomestayBookingAPI.Controllers
         private readonly IBookingService _bookingService;
         private readonly IPlaceService _placeService;
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<BookingController> _logger;
 
-        public BookingController(IBookingService bookingService, ApplicationDbContext context, IPlaceService placeService)
+        public BookingController(IBookingService bookingService, ApplicationDbContext context, IPlaceService placeService, ILogger<BookingController> logger)
         {
             _bookingService = bookingService;
             _context = context;
             _placeService = placeService;
+            _logger = logger;
         }
 
         [HttpGet("all-bookings")]
@@ -114,6 +118,119 @@ namespace HomestayBookingAPI.Controllers
                 return NotFound($"No bookings found for landlord ID {landlordId}.");
             }
             return Ok(bookings);
+        }
+
+        [HttpPut("accept-booking-request/{id}")]
+        [Authorize(AuthenticationSchemes = "Bearer", Roles = "Admin, Landlord")]
+        public async Task<IActionResult> AcceptBookingRequest(int id)
+        {
+            try
+            {
+                var booking = await _bookingService.GetBookingByIdAsync(id);
+                if (booking == null)
+                {
+                    return NotFound($"No booking found with ID {id}.");
+                }
+
+                var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var currentRole = User.FindFirstValue(ClaimTypes.Role);
+
+                if (string.IsNullOrEmpty(currentUserId) || string.IsNullOrEmpty(currentRole))
+                {
+                    _logger.LogWarning("Invalid user claims for accepting booking {BookingId}", id);
+                    return Unauthorized(new { message = "Invalid user authentication" });
+                }
+
+                if (currentRole != "Admin")
+                {
+                    var place = await _context.Places.FirstOrDefaultAsync(p => p.Id == booking.PlaceId);
+                    if (place == null)
+                    {
+                        _logger.LogWarning("Place with ID {PlaceId} not found for booking {BookingId}", booking.PlaceId, id);
+                        return NotFound(new { message = $"Place with ID {booking.PlaceId} not found." });
+                    }
+
+                    if (place.OwnerId != currentUserId)
+                    {
+                        _logger.LogWarning("User {UserId} is not authorized to accept booking {BookingId}", currentUserId, id);
+                        return Forbid("You are not authorized to accept this booking");
+                    }
+                }
+                var result = await _bookingService.UpdateBookingStatusAsync(id, BookingStatus.Confirmed, currentRole);
+                if (!result)
+                {
+                    return BadRequest(new { message = "Không thể chấp nhận" });
+                }
+                return Ok(new {
+                    message = "Đã chấp nhận đơn đặt",
+                    bookingId = id,
+                    status = BookingStatus.Confirmed
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, $"Error accepting booking: {ex.Message}");
+            }
+        }
+
+        [HttpPut("reject-booking-request/{id}")]
+        [Authorize(AuthenticationSchemes = "Bearer", Roles = "Admin, Landlord")]
+        public async Task<IActionResult> RejectBookingRequest(int id, [FromBody] RejectBookingRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request?.Reason))
+                {
+                    _logger.LogWarning("Reject reason is empty for booking {BookingId}", id);
+                    return BadRequest(new { message = "Lý do từ chối không được để trống" });
+                }
+
+                var booking = await _bookingService.GetBookingByIdAsync(id);
+                if (booking == null)
+                {
+                    return NotFound($"No booking found with ID {id}.");
+                }
+                var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var currentRole = User.FindFirstValue(ClaimTypes.Role);
+
+                if (string.IsNullOrEmpty(currentUserId) || string.IsNullOrEmpty(currentRole))
+                {
+                    _logger.LogWarning("Invalid user claims for accepting booking {BookingId}", id);
+                    return Unauthorized(new { message = "Invalid user authentication" });
+                }
+
+                if (currentRole != "Admin")
+                {
+                    var place = await _context.Places.FirstOrDefaultAsync(p => p.Id == booking.PlaceId);
+                    if (place == null)
+                    {
+                        _logger.LogWarning("Place with ID {PlaceId} not found for booking {BookingId}", booking.PlaceId, id);
+                        return NotFound(new { message = $"Place with ID {booking.PlaceId} not found." });
+                    }
+
+                    if (place.OwnerId != currentUserId)
+                    {
+                        _logger.LogWarning("User {UserId} is not authorized to accept booking {BookingId}", currentUserId, id);
+                        return Forbid("You are not authorized to accept this booking");
+                    }
+                }
+                var result = await _bookingService.UpdateBookingStatusAsync(id, BookingStatus.Cancelled, currentRole , request.Reason);
+                if (!result)
+                {
+                    _logger.LogWarning("Failed to reject booking {BookingId} with reason: {RejectReason}", id, request.Reason);
+                    return BadRequest(new { message = "Không thể từ chối" });
+                }
+                return Ok(new { 
+                    message = "Đã từ chối đơn đặt",
+                    rejectReason = request.Reason,
+                    bookingId = id,
+                    status = BookingStatus.Cancelled
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, $"Error rejecting booking: {ex.Message}");
+            }
         }
     }
 }

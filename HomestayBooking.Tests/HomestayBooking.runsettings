@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <MSTest>
+    <Parallelize>
+      <Workers>1</Workers>
+      <Scope>None</Scope>
+      <ExecutionMode>SingleContext</ExecutionMode>
+    </Parallelize>
+  </MSTest>
+  
+  <RunConfiguration>
+    <MaxCpuCount>1</MaxCpuCount>
+    <ResultsDirectory>.\TestResults</ResultsDirectory>
+    <TestSessionTimeout>10800000</TestSessionTimeout>
+    <TargetFrameworkVersion>net9.0</TargetFrameworkVersion>
+  </RunConfiguration>
+  
+  <LoggerRunSettings>
+    <Loggers>
+      <Logger friendlyName="console" enabled="True" />
+      <Logger friendlyName="trx" enabled="True" />
+    </Loggers>
+  </LoggerRunSettings>
+</RunSettings>

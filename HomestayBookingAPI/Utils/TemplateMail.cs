@@ -73,7 +73,66 @@ namespace HomestayBookingAPI.Utils
                         </div>
                     </body>
                     </html>";
-        } 
+        }
+
+        public static string BookingStatusChangeEmail(Booking booking, string url, bool isAccepted, string rejectReason = "Không xác định")
+        {
+            return isAccepted ? $@"
+                    <html>
+                    <head>
+                        <style>
+                            body {{ font-family: 'Segoe UI', sans-serif; background-color: #f9f9f9; color: #333; }}
+                            .container {{ max-width: 600px; margin: auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+                            h2 {{ color: {(isAccepted ? "#4CAF50" : "#F44336")}; }}
+                            .row {{ margin-bottom: 10px; }}
+                            .label {{ font-weight: bold; }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class=""container"">
+                            <h2>Đặt chỗ thành công</h2>
+                            <p>Chào {booking.User?.FullName ?? "Quý khách"},</p>
+                            <p>Yêu cầu đặt chỗ tại <strong>{booking.Place?.Name ?? "Địa điểm không xác định"}</strong> đã được xác nhận.</p>
+                            <div class=""row""><span class=""label"">Ngày nhận phòng:</span> {booking.StartDate:dd/MM/yyyy}</div>
+                            <div class=""row""><span class=""label"">Ngày trả phòng:</span> {booking.EndDate:dd/MM/yyyy}</div>
+                            <div class=""row""><span class=""label"">Số khách:</span> {booking.NumberOfGuests}</div>
+                            <div class=""row""><span class=""label"">Tổng tiền:</span> {booking.TotalPrice:N0} VND</div>
+                            <div class=""row""><span class=""label"">Trạng thái thanh toán:</span> {booking.PaymentStatus}</div>
+                            <p>Vui lòng truy cập <a href=""{url}"" class=""btn""> vào đây </a> để thanh toán.</p>
+                            <p>Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi.</p>
+                        </div>
+                    </body>
+                    </html>" 
+                    :
+                    $@"
+                    <html>
+                    <head>
+                        <style>
+                            body {{ font-family: 'Segoe UI', sans-serif; background-color: #f9f9f9; color: #333; }}
+                            .container {{ max-width: 600px; margin: auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+                            h2 {{ color: #4CAF50; }}
+                            .row {{ margin-bottom: 10px; }}
+                            .label {{ font-weight: bold; }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class=""container"">
+                            <h2>Đặt chỗ không thành thành công</h2>
+                            <p>Chào {booking.User?.FullName ?? "Quý khách"},</p>
+                            <p>Yêu cầu đặt chỗ tại <strong>{booking.Place?.Name ?? "Địa điểm không xác định"}</strong> đã bị từ chối.</p>
+                            <div class=""row""><span class=""label"">Ngày nhận phòng:</span> {booking.StartDate:dd/MM/yyyy}</div>
+                            <div class=""row""><span class=""label"">Ngày trả phòng:</span> {booking.EndDate:dd/MM/yyyy}</div>
+                            <div class=""row""><span class=""label"">Số khách:</span> {booking.NumberOfGuests}</div>
+                            <div class=""row""><span class=""label"">Tổng tiền:</span> {booking.TotalPrice:N0} VND</div>
+                            <div class=""row""><span class=""label"">Trạng thái thanh toán:</span> {booking.PaymentStatus}</div>
+                            <div class=""row""><span class=""label"">Lí do từ chỗi:</span> {rejectReason}</div>
+                            <p>Vui lòng truy cập <a href=""{url}"" class=""btn""> vào đây </a> để xem chi tiết.</p>
+                            <p>Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi.</p>
+                        </div>
+                    </body>
+                    </html>";
+        }
+
 
     }
 

@@ -18,6 +18,8 @@ namespace HomestayBookingAPI.Models
 
         public int? BookingId { get; set; }
 
+        public string JobId { get; set; } // id của job trong hangfire (nếu có) để xóa job khi đã gửi email thành công
+
         [Required]
         [EnumDataType(typeof(NotificationType))]
         [JsonConverter(typeof(JsonStringEnumConverter))]

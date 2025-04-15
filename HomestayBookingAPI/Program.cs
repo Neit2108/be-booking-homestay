@@ -11,6 +11,7 @@ using HomestayBookingAPI.Services.NotifyServices;
 using HomestayBookingAPI.Services.OwnerServices;
 using HomestayBookingAPI.Services.PlaceServices;
 using HomestayBookingAPI.Services.ProfileServices;
+using HomestayBookingAPI.Services.TestCaseServices;
 using HomestayBookingAPI.Services.TopRatePlaceServices;
 using HomestayBookingAPI.Services.UserServices;
 using HomestayBookingAPI.Services.VoucherServices;
@@ -58,6 +59,7 @@ builder.Services.AddHangfireServer(options =>
     options.WorkerCount = 1;
 });
 GlobalJobFilters.Filters.Add(new AutomaticRetryAttribute { Attempts = 3 }); // gửi lại 3 lần nếu thất bại
+
 var configuration = builder.Configuration;
 
 var secretKey = Encoding.UTF8.GetBytes(configuration["JwtSettings:Secret"]);
@@ -80,13 +82,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
             RoleClaimType = ClaimTypes.Role
         };
-    }).AddCookie("HangfireCookie", options =>
-    {
-        options.Cookie.Name = "HangfireAuth";
-        options.LoginPath = "/admin/login";
-        options.Cookie.HttpOnly = true;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // Bắt buộc dùng HTTPS
-        options.Cookie.SameSite = SameSiteMode.None; // Để dùng giữa domain khác nhau (5173 <-> 7284)
     });
 
 builder.Services.AddAuthorization();
@@ -104,7 +99,7 @@ builder.Services.AddScoped<IVoucherService, VoucherService>();
 builder.Services.AddScoped<INotifyService, NotifyService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
-
+builder.Services.AddScoped<ITestCaseService, TestCaseService>();
 builder.Services.AddLogging(logging =>
 {
     logging.ClearProviders(); 
@@ -138,12 +133,7 @@ using (var scope = app.Services.CreateScope())
     await SeedRole.InitializeRolesAndAdmin(roleManager, userManager);
 } // tạo role và admin mặc định
 
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(
-        Path.Combine(builder.Environment.ContentRootPath, "wwwroot/static")),
-    RequestPath = "/static"
-});
+app.UseStaticFiles();
 app.UseCors("AllowAll");
 
 app.UseHttpsRedirection();
@@ -152,15 +142,24 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 
-app.UseHangfireDashboard("/hangfire", new DashboardOptions
+//app.UseHangfireDashboard("/hangfire", new DashboardOptions
+//{
+//    Authorization = new[] { new AuthorizationFilter() }, 
+//});
+app.UseHangfireDashboard("/hangfire");
+using (var scope = app.Services.CreateScope())
 {
-    Authorization = new[] { new AuthorizationFilter() }, 
-});
-RecurringJob.AddOrUpdate<ITopRateService>(
-    "update-top-rated-places",
-    service => service.UpdateTopRateAsync(5),
-    "0 0 * * *"); // Chạy lúc 00:00 mỗi ngày (cron expression)
+    var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+    recurringJobManager.AddOrUpdate(
+        "update-notification-status",
+        () => scope.ServiceProvider.GetRequiredService<INotifyService>().UpdateNotificationStatusAsync(),
+        "*/5 * * * *");
 
+    recurringJobManager.AddOrUpdate(
+        "update-top-rated-places",
+        () => scope.ServiceProvider.GetRequiredService<ITopRateService>().UpdateTopRateAsync(5),
+        "*/5 * * * *");
+}
 
 app.MapControllers();
 

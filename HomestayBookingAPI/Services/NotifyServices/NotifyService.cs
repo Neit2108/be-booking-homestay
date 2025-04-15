@@ -1,4 +1,5 @@
-﻿using HomestayBookingAPI.Data;
+﻿using Hangfire;
+using HomestayBookingAPI.Data;
 using HomestayBookingAPI.Models;
 using HomestayBookingAPI.Models.Enum;
 using HomestayBookingAPI.Services.EmailServices;
@@ -14,13 +15,17 @@ namespace HomestayBookingAPI.Services.NotifyServices
         private readonly IEmailService _emailService;
         private readonly string _baseUrl;
         private readonly IJwtService _jwtService;
+        private readonly ILogger<NotifyService> _logger;
+        private readonly IBackgroundJobClient _backgroundJobClient;
 
-        public NotifyService(ApplicationDbContext context, IEmailService emailService, IConfiguration config, IJwtService jwtService)
+        public NotifyService(ApplicationDbContext context, IEmailService emailService, IConfiguration config, IJwtService jwtService, ILogger<NotifyService> logger, IBackgroundJobClient backgroundJobClient)
         {
             _emailService = emailService;
             _context = context;
             _baseUrl = config["App:BaseUrl"] ?? "https://localhost:5173";
             _jwtService = jwtService;
+            _logger = logger;
+            _backgroundJobClient = backgroundJobClient;
         }
 
         public async Task CreateNewBookingNotificationAsync(Booking booking, bool sendEmail = true)
@@ -34,9 +39,9 @@ namespace HomestayBookingAPI.Services.NotifyServices
                 throw new Exception("Customer or Place not found");
             }
 
-            var customerToken = _jwtService.GenerateActionToken(customer.Id, NotificationType.BookingConfirmation.ToString() ,booking.Id, "Customer");
+            var customerToken = _jwtService.GenerateActionToken(customer.Id, NotificationType.ConfirmInfo.ToString() ,booking.Id, "Customer");
             //var landlordToken = _jwtService.GenerateEmailConfirmationToken(landlord, "Landlord", booking.Id);
-
+            var landlordToken = _jwtService.GenerateActionToken(landlord.Id, NotificationType.BookingRequest.ToString(), booking.Id, "Landlord");
 
             var customerNotify = new Notification
             {
@@ -58,23 +63,38 @@ namespace HomestayBookingAPI.Services.NotifyServices
                 Type = NotificationType.BookingRequest,
                 Title = "Yêu cầu đặt phòng",
                 Message = $"You have a new booking request from {customer.FullName} for {place.Name} from {booking.StartDate.ToShortDateString()} to {booking.EndDate.ToShortDateString()}.",
-                Url = $"{_baseUrl}/landlord/booking/{booking.Id}",
+                Url = $"{_baseUrl}/auth/verify-action/{landlordToken}",
                 Status = NotificationStatus.Pending,
             };
 
-            _context.Notifications.AddRange(customerNotify, lanlordNotify);
-            await _context.SaveChangesAsync();
+            //_context.Notifications.AddRange(customerNotify, lanlordNotify);
+            //await _context.SaveChangesAsync();
 
-            if(sendEmail)
+            try
             {
-                await SendBookingEmailAsync(booking.Id);
+                var customerEmail = TemplateMail.BookingConfirmationForCustomer(booking, customerNotify.Url);
+                var landlordEmail = TemplateMail.BookingRequestForLanlord(booking, lanlordNotify.Url);
+
+                //await _emailService.SendEmailAsync(customer.Email, "Xác nhận thông tin đặt phòng", customerEmail);
+                var customerJobId = _backgroundJobClient.Enqueue(() => _emailService.SendEmailAsync(customer.Email, "Xác nhận thông tin đặt phòng", customerEmail));
+                customerNotify.JobId = customerJobId;
+                //await _emailService.SendEmailAsync(landlord.Email, "Yêu cầu đặt phòng", landlordEmail);
+                var landlordJobId = _backgroundJobClient.Enqueue(() => _emailService.SendEmailAsync(landlord.Email, "Yêu cầu đặt phòng", landlordEmail));
+                lanlordNotify.JobId = landlordJobId;
             }
+            catch (Exception ex)
+            {
+                customerNotify.Status = NotificationStatus.Failed;
+                lanlordNotify.Status = NotificationStatus.Failed;
+                throw new Exception("Không thể gửi email", ex);
+            }
+
+            _context.Notifications.AddRange(customerNotify,  lanlordNotify);
+            await _context.SaveChangesAsync();
 
         }
 
-        
-
-        public async Task SendBookingEmailAsync(int bookingId)
+        public async Task NotifyBookingStatusChangeAsync(int bookingId, bool isAccepted, string rejectReason = "Không xác định")
         {
             var booking = await _context.Bookings
                 .Include(b => b.User)
@@ -85,8 +105,8 @@ namespace HomestayBookingAPI.Services.NotifyServices
             if (booking == null)
             {
                 throw new Exception("Không tìm thấy booking");
-                return;
             }
+
             var customer = booking.User;
             var place = booking.Place;
             var landlord = place?.Owner;
@@ -96,37 +116,85 @@ namespace HomestayBookingAPI.Services.NotifyServices
                 throw new Exception("Không tìm thấy khách hàng hoặc địa điểm");
             }
 
-            var customerNotify = await _context.Notifications
-                .FirstOrDefaultAsync(n => n.BookingId == booking.Id && n.RecipientId == customer.Id && n.Type == NotificationType.ConfirmInfo);
-            var lanlordNotify = await _context.Notifications
-                .FirstOrDefaultAsync(n => n.BookingId == booking.Id && n.RecipientId == landlord.Id && n.Type == NotificationType.BookingRequest);
-
-            if (customerNotify == null || lanlordNotify == null)
+            if(isAccepted)
             {
-                throw new Exception("Không tìm thấy thông báo");
+                booking.Status = BookingStatus.Confirmed;
+            }
+            else
+            {
+                booking.Status = BookingStatus.Cancelled;
+
             }
 
+            var notificationType = isAccepted ? NotificationType.BookingConfirmation : NotificationType.BookingCancellation;
+            var notificationMessage = isAccepted ? $"Đặt phòng tại {place.Name} từ {booking.StartDate} đến {booking.EndDate} thành công" :
+                $"Đặt phòng tại {place.Name} từ {booking.StartDate} đến {booking.EndDate} không thành công. Yêu cầu của bạn bị từ chối";
+            var notificationTitle = isAccepted ? "Đặt phòng thành công" : "Đặt phòng thất bại";
+
+            var customerToken = _jwtService.GenerateActionToken(customer.Id, notificationType.ToString(), booking.Id, "Customer");
+            if (customerToken == null)
+            {
+                throw new Exception("Không thể tạo token cho khách hàng");
+            }
+            var customerNotify = new Notification
+            {
+                RecipientId = customer.Id,
+                SenderId = "system",
+                BookingId = booking.Id,
+                Type = notificationType,
+                Title = notificationTitle,
+                Message = notificationMessage,
+                Url = $"{_baseUrl}/auth/verify-action/{customerToken}",
+                Status = NotificationStatus.Pending,
+            };
+
+            _context.Notifications.Add(customerNotify);
             try
             {
-                var customerEmail = TemplateMail.BookingConfirmationForCustomer(booking, customerNotify.Url);
-                var landlordEmail = TemplateMail.BookingRequestForLanlord(booking, lanlordNotify.Url);
-
-                await _emailService.SendEmailAsync(customer.Email, "Xác nhận thông tin đặt phòng", customerEmail);
-                customerNotify.Status = NotificationStatus.Sent;
-                await _emailService.SendEmailAsync(landlord.Email, "Yêu cầu đặt phòng", landlordEmail);
-                lanlordNotify.Status = NotificationStatus.Sent;
+                var customerEmail = TemplateMail.BookingStatusChangeEmail(booking, customerNotify.Url, isAccepted, rejectReason);
+                //await _emailService.SendEmailAsync(customer.Email, notificationTitle, customerEmail);
+                var customerJobId = _backgroundJobClient.Enqueue(() => _emailService.SendEmailAsync(customer.Email, notificationTitle, customerEmail));
+                customerNotify.JobId = customerJobId;
             }
             catch (Exception ex)
             {
                 customerNotify.Status = NotificationStatus.Failed;
-                lanlordNotify.Status = NotificationStatus.Failed;
-                await _context.SaveChangesAsync();
-                throw new Exception("Không thể gửi email", ex);
+                
+                _logger.LogError(ex, "Failed to send email to customer for booking status change");
             }
-
             await _context.SaveChangesAsync();
         }
 
 
+        public async Task UpdateNotificationStatusAsync()
+        {
+            var notifications = await _context.Notifications
+                .Where(n => n.JobId != null && n.Status == NotificationStatus.Pending)
+                .ToListAsync();
+
+            foreach (var notification in notifications)
+            {
+                try
+                {
+                    var job = JobStorage.Current.GetConnection().GetJobData(notification.JobId);
+                    if (job != null && job.State == "Succeeded")
+                    {
+                        notification.Status = NotificationStatus.Sent;
+                        _logger.LogInformation("Updated notification {NotificationId} to Sent for job {JobId}", notification.Id, notification.JobId);
+                    }
+                    else if (job != null && job.State == "Failed")
+                    {
+                        notification.Status = NotificationStatus.Failed;
+                        _logger.LogInformation("Updated notification {NotificationId} to Failed for job {JobId}", notification.Id, notification.JobId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to update status for notification {NotificationId}", notification.Id);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+        }
     }
 }

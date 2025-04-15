@@ -18,5 +18,15 @@ namespace HomestayBookingAPI.Services.UserServices
             return user;
         }
 
+        public async Task<string> GetUserRoleAsync(string id)
+        {
+            var user = await _userManager.FindByIdAsync(id);
+            if (user != null)
+            {
+                var roles = await _userManager.GetRolesAsync(user);
+                return roles.FirstOrDefault();
+            }
+            return null;
+        }
     }
 }

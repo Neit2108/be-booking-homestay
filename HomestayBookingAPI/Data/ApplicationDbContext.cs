@@ -14,6 +14,7 @@ namespace HomestayBookingAPI.Data
         public DbSet<PlaceAvailable> PlaceAvailables { get; set; }
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<Voucher> Vouchers { get; set; }
+        public DbSet<TestCaseModel> TestCases { get; set; }
 
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)

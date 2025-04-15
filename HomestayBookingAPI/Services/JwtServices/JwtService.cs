@@ -36,9 +36,6 @@ namespace HomestayBookingAPI.Services.JwtServices
                 new Claim(ClaimTypes.Name, user.UserName),
                 new Claim(ClaimTypes.Role, roles.FirstOrDefault()),
 
-                new Claim(JwtRegisteredClaimNames.Iss, _configuration["JwtSettings:Issuer"]),
-                new Claim(JwtRegisteredClaimNames.Aud, _configuration["JwtSettings:Audience"]),
-                new Claim(JwtRegisteredClaimNames.Exp, new DateTimeOffset(DateTime.UtcNow.AddHours(1)).ToUnixTimeSeconds().ToString())
             };
             var token = new JwtSecurityToken(
                 issuer: _configuration["JwtSettings:Issuer"],
@@ -49,34 +46,6 @@ namespace HomestayBookingAPI.Services.JwtServices
             );
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
-
-        //public string GenerateEmailConfirmationToken(ApplicationUser user, string role, int bookingId)
-        //{
-        //    var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JwtSettings:Secret"]));
-        //    var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
-
-        //    var claims = new List<Claim>
-        //    {
-        //    new Claim(JwtRegisteredClaimNames.Sub, user.Id),
-        //    new Claim(ClaimTypes.NameIdentifier, user.Id),
-        //    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-        //    new Claim(JwtRegisteredClaimNames.Iss, _configuration["JwtSettings:Issuer"]),
-        //    new Claim(JwtRegisteredClaimNames.Aud, _configuration["JwtSettings:Audience"]),
-        //    new Claim("type", "EmailConfirmationToken"), // Thêm claim để phân biệt token này
-        //    new Claim("role", role)
-        //    new Claim("bookingId", bookingId.ToString())
-        //    };
-
-        //    var token = new JwtSecurityToken(
-        //        issuer: _configuration["JwtSettings:Issuer"],
-        //        audience: _configuration["JwtSettings:Audience"],
-        //        claims: claims,
-        //        expires: DateTime.UtcNow.AddHours(24),
-        //        signingCredentials: credentials
-        //    );
-
-        //    return new JwtSecurityTokenHandler().WriteToken(token);
-        //}
 
         public string GenerateActionToken(string userId, string action, int referenceId, string role)
         {

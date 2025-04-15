@@ -8,6 +8,7 @@ using HomestayBookingAPI.Services.PlaceServices;
 using HomestayBookingAPI.Services.UserServices;
 using HomestayBookingAPI.Services.VoucherServices;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace HomestayBookingAPI.Services.BookingServices
 {
@@ -190,7 +191,7 @@ namespace HomestayBookingAPI.Services.BookingServices
                 await _context.Bookings.AddAsync(booking);
                 await _context.SaveChangesAsync();
 
-                await _notifyService.CreateNewBookingNotificationAsync(booking, false); //tao thong bao
+                await _notifyService.CreateNewBookingNotificationAsync(booking); //tao thong bao
 
                 await transaction.CommitAsync();
             }
@@ -199,8 +200,6 @@ namespace HomestayBookingAPI.Services.BookingServices
                 await transaction.RollbackAsync();
                 throw new InvalidOperationException("Failed to create booking due to an unexpected error", ex);
             }
-
-            BackgroundJob.Enqueue<INotifyService>(service => service.SendBookingEmailAsync(booking.Id));
 
             return new BookingResponse
             {
@@ -385,28 +384,34 @@ namespace HomestayBookingAPI.Services.BookingServices
             return bookings;
         }
 
-        public async Task<bool> UpdateBookingStatusAsync(int id, BookingStatus status)
+        public async Task<bool> UpdateBookingStatusAsync(int id, BookingStatus status, string currentRole, string rejectReason = "Không xác định")
         {
+            using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
                 // Tìm booking theo ID
                 var booking = await _context.Bookings
                     .Include(b => b.Place) // Include Place để lấy thông tin liên quan nếu cần
+                    .ThenInclude(b => b.Owner) // Include Owner để lấy thông tin chủ nhà
                     .FirstOrDefaultAsync(b => b.Id == id);
+
                 if (booking == null)
                 {
                     _logger.LogWarning("Booking with ID {BookingId} not found for status update", id);
                     return false;
                 }
-
-                // Kiểm tra logic trạng thái
-                if (!IsValidStatusTransition(booking.Status, status))
+                
+                if (!IsValidStatusTransition(booking.Status, status, currentRole))
                 {
                     _logger.LogWarning("Invalid status transition from {CurrentStatus} to {NewStatus} for booking {BookingId}", booking.Status, status, id);
                     throw new Exception($"Invalid status transition from {booking.Status} to {status}");
                 }
 
-                // Nếu chuyển sang trạng thái Cancelled, đánh dấu các ngày trong PlaceAvailable là khả dụng
+                var oldStatus = booking.Status;
+                booking.Status = status;
+                booking.UpdatedAt = DateTime.UtcNow;
+
+
                 if (status == BookingStatus.Cancelled && booking.Status != BookingStatus.Cancelled)
                 {
                     var start = booking.StartDate.Date;
@@ -418,41 +423,55 @@ namespace HomestayBookingAPI.Services.BookingServices
                                      pa.Date <= end)
                         .ToListAsync();
 
-                    foreach (var pa in placeAvailables)
+                    if (!placeAvailables.Any())
                     {
-                        pa.IsAvailable = true; // Đánh dấu lại là khả dụng
+                        _logger.LogWarning("No PlaceAvailables found for booking {BookingId} in date range {StartDate} to {EndDate}", id, start, end);
+                    }
+                    else
+                    {
+                        foreach (var pa in placeAvailables)
+                        {
+                            if (!pa.IsAvailable) 
+                            {
+                                pa.IsAvailable = true;
+                            }
+                        }
                     }
                 }
-
-                // Cập nhật trạng thái booking
-                booking.Status = status;
-                booking.UpdatedAt = DateTime.UtcNow;
 
                 _context.Bookings.Update(booking);
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Booking {BookingId} status updated to {Status}", id, status);
+                if (status == BookingStatus.Confirmed || status == BookingStatus.Cancelled)
+                {
+                    await _notifyService.NotifyBookingStatusChangeAsync(id, status == BookingStatus.Confirmed, rejectReason);
+                }
+
+                await transaction.CommitAsync();
+
                 return true;
             }
             catch (DbUpdateException ex)
             {
+                await transaction.RollbackAsync();
                 _logger.LogError(ex, "Database error occurred while updating status of booking {BookingId}", id);
                 throw new Exception("Database error occurred while updating booking status", ex);
             }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync();
                 _logger.LogError(ex, "Unexpected error occurred while updating status of booking {BookingId}", id);
                 throw new Exception("Unexpected error occurred while updating booking status", ex);
             }
         }
 
-        private bool IsValidStatusTransition(BookingStatus currentStatus, BookingStatus newStatus)
+        private bool IsValidStatusTransition(BookingStatus currentStatus, BookingStatus newStatus, string role)
         {
             return (currentStatus, newStatus) switch
             {
                 (BookingStatus.Pending, BookingStatus.Confirmed) => true,
                 (BookingStatus.Pending, BookingStatus.Cancelled) => true,
-                (BookingStatus.Confirmed, BookingStatus.Cancelled) => true,
+                (BookingStatus.Confirmed, BookingStatus.Cancelled) => role == "Admin",
                 _ => false
             };
         }
