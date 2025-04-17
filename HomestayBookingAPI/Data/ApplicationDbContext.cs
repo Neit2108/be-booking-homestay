@@ -15,7 +15,7 @@ namespace HomestayBookingAPI.Data
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<Voucher> Vouchers { get; set; }
         public DbSet<TestCaseModel> TestCases { get; set; }
-
+        public DbSet<Favourite> Favourites { get; set; } 
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
@@ -49,6 +49,20 @@ namespace HomestayBookingAPI.Data
             modelBuilder.Entity<ApplicationUser>()
                 .HasIndex(u => u.IdentityCard)
                 .IsUnique();
+
+            // Khóa chính cho Favourite
+            modelBuilder.Entity<Favourite>()
+                .HasKey(f => new { f.UserId, f.PlaceId });
+
+            modelBuilder.Entity<Favourite>()
+                .HasOne(f => f.User)
+                .WithMany(u => u.Favourites)
+                .HasForeignKey(f => f.UserId);
+
+            modelBuilder.Entity<Favourite>()
+                .HasOne(f => f.Place)
+                .WithMany(p => p.Favourites)
+                .HasForeignKey(f => f.PlaceId);
 
             base.OnModelCreating(modelBuilder);
             // Xóa Asp

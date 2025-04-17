@@ -1,4 +1,5 @@
 ﻿using HomestayBookingAPI.DTOs;
+using HomestayBookingAPI.DTOs.Place;
 using HomestayBookingAPI.Models;
 using HomestayBookingAPI.Services.ImageServices;
 using HomestayBookingAPI.Services.PlaceServices;
@@ -35,7 +36,8 @@ namespace HomestayBookingAPI.Services.OwnerServices
                     Email = ownerForm.Email,
                     PhoneNumber = ownerForm.PhoneNumber,
                     HomeAddress = ownerForm.HomeAddress,
-                    UserName = ownerForm.Username
+                    UserName = ownerForm.Username,
+                    Favourites = null
                 }; // -> user
 
                 var result = await _userManager.CreateAsync(user, ownerForm.Password);
@@ -52,42 +54,43 @@ namespace HomestayBookingAPI.Services.OwnerServices
                     throw new Exception($"Lỗi phân quyền: {string.Join(", ", roleResult.Errors)}");
                 }
 
-                var placeImages = new List<PlaceImage>();
-                if (placeForm.PlaceImages != null && placeForm.PlaceImages.Any())
-                {
-                    foreach (var imageFile in placeForm.PlaceImages)
-                    {
-                        var imageUrl = await _imageService.UploadImageAsync(imageFile);
-                        if (imageUrl != null)
-                        {
-                            placeImages.Add(new PlaceImage { ImageUrl = imageUrl });
-                        }
-                        else
-                        {
-                            _logger.LogWarning("Lỗi tải ảnh.");
-                        }
-                    }
-                } // -> Them anh 
+                ////var placeImages = new List<PlaceImage>();
+                ////if (placeForm.PlaceImages != null && placeForm.PlaceImages.Any())
+                ////{
+                ////    foreach (var imageFile in placeForm.PlaceImages)
+                ////    {
+                ////        var imageUrl = await _imageService.UploadImageAsync(imageFile);
+                ////        if (imageUrl != null)
+                ////        {
+                ////            placeImages.Add(new PlaceImage { ImageUrl = imageUrl });
+                ////        }
+                ////        else
+                ////        {
+                ////            _logger.LogWarning("Lỗi tải ảnh.");
+                ////        }
+                ////    }
+                ////} // -> Them anh 
 
-                if (!placeImages.Any())
-                {
-                    _logger.LogError("Không ảnh nào được thêm.");
-                    throw new Exception("Không ảnh nào được thêm.");
-                }
+                //if (!placeImages.Any())
+                //{
+                //    _logger.LogError("Không ảnh nào được thêm.");
+                //    throw new Exception("Không ảnh nào được thêm.");
+                //}
 
-                var place = new Place
+                var placeRequest = new PlaceRequest
                 {
                     Name = placeForm.PlaceName,
                     Description = placeForm.PlaceDescription,
                     Address = placeForm.PlaceAddress,
                     Price = placeForm.PlacePrice,
                     OwnerId = user.Id,
-                    Images = placeImages,
+                    Images = placeForm.PlaceImages,
                     Category = "homestay", //default
                     MaxGuests = 3, //default
                 };
 
-                var resultPlace = await _placeService.AddPlaceAsync(place);
+                
+                var resultPlace = await _placeService.AddPlaceAsync(placeRequest);
                 if (resultPlace == null)
                 {
                     _logger.LogError("Lỗi tạo Homestay của chủ nhà mã {UserId}", user.Id);

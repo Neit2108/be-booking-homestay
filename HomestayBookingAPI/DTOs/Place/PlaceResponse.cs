@@ -1,6 +1,6 @@
-﻿namespace HomestayBookingAPI.DTOs
+﻿namespace HomestayBookingAPI.DTOs.Place
 {
-    public class PlaceDTO
+    public class PlaceResponse
     {
         public int Id { get; set; }
         public string Name { get; set; }

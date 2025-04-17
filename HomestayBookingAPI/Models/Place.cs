@@ -45,5 +45,6 @@ namespace HomestayBookingAPI.Models
         public virtual ApplicationUser Owner { get; set; } // FK đến User
 
         public List<PlaceImage> Images { get; set; } = new List<PlaceImage>(); // 1 - n với PlaceImage
+        public List<Favourite> Favourites { get; set; } = new List<Favourite>(); // 1 - n với Favourite
     }
 }

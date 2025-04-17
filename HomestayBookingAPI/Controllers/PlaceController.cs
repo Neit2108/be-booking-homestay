@@ -1,10 +1,12 @@
 ﻿using HomestayBookingAPI.DTOs;
+using HomestayBookingAPI.DTOs.Place;
 using HomestayBookingAPI.Models;
 using HomestayBookingAPI.Services.PlaceServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 
 namespace HomestayBookingAPI.Controllers
 {
@@ -49,6 +51,15 @@ namespace HomestayBookingAPI.Controllers
             return Ok(places);
         }
 
+        [HttpGet("get-all-for-landlord/{id}")]
+        [Authorize(AuthenticationSchemes = "Bearer", Roles = "Admin, Landlord")]
+        public async Task<ActionResult<List<PlaceDTO>>> GetAllPlacesForLandlord(string id)
+        {
+            
+            var places = await _placeService.GetAllPlacesOfLandlord(id);
+            return Ok(places);
+        }
+
         [HttpGet("get-same-category/{id}")]
         public async Task<ActionResult<List<PlaceDTO>>> GetSameCategoryPlaces(int id)
         {
@@ -61,24 +72,13 @@ namespace HomestayBookingAPI.Controllers
         }
 
         [HttpPost("add-place")]
-        [Authorize(Roles = "Admin, Lanlord")]
-        public async Task<ActionResult<Place>> AddPlace([FromBody] Place place)
+        [Authorize(AuthenticationSchemes = "Bearer", Roles = "Admin, Landlord")]
+        public async Task<IActionResult> AddPlace([FromForm] PlaceRequest placeRequest)
         {
-            if (place == null)
-            {
-                return BadRequest("Dữ liệu không hợp lệ");
-            }
-
-            var validationContext = new ValidationContext(place);
-            var validationResult = new List<ValidationResult>();
-            if (!Validator.TryValidateObject(place, validationContext, validationResult, true))
-            {
-                return BadRequest("Dữ liệu không hợp lệ");
-            }
-
+            
             try
             {
-                var newPlace = await _placeService.AddPlaceAsync(place);
+                var newPlace = await _placeService.AddPlaceAsync(placeRequest);
                 return CreatedAtAction(
                     nameof(GetPlaceById), // Tên action để lấy Place theo Id
                     new { id = newPlace.Id }, // Route values

@@ -1,9 +1,11 @@
 ﻿using HomestayBookingAPI.Data;
 using HomestayBookingAPI.DTOs;
+using HomestayBookingAPI.DTOs.Place;
 using HomestayBookingAPI.Models;
 using HomestayBookingAPI.Services.ImageServices;
 using HomestayBookingAPI.Services.TopRatePlaceServices;
 using Microsoft.EntityFrameworkCore;
+using OpenQA.Selenium;
 using System.ComponentModel.DataAnnotations;
 using System.Numerics;
 
@@ -24,9 +26,41 @@ namespace HomestayBookingAPI.Services.PlaceServices
             _topRateService = topRateService;
         }
 
-        public async Task<Place> AddPlaceAsync(Place place)
+        public async Task<PlaceResponse> AddPlaceAsync(PlaceRequest placeRequest)
         {
-            if(place == null)
+            var placeImages = new List<PlaceImage>();
+            if (placeRequest.Images != null && placeRequest.Images.Any())
+            {
+                foreach (var imageFile in placeRequest.Images)
+                {
+                    var imageUrl = await _imageService.UploadImageAsync(imageFile);
+                    if (imageUrl != null)
+                    {
+                        placeImages.Add(new PlaceImage { ImageUrl = imageUrl });
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Lỗi tải ảnh.");
+                    }
+                }
+            } // -> Them anh 
+            if (!placeImages.Any())
+            {
+                _logger.LogError("Không ảnh nào được thêm.");
+                throw new Exception("Không ảnh nào được thêm.");
+            }
+            var place = new Place
+            {
+                Name = placeRequest.Name,
+                Address = placeRequest.Address,
+                Category = placeRequest.Category,
+                Description = placeRequest.Description,
+                Price = placeRequest.Price,
+                MaxGuests = placeRequest.MaxGuests,
+                OwnerId = placeRequest.OwnerId,
+                Images = placeImages,
+            };
+            if (place == null)
             {
                 throw new Exception("Place is null");
             }
@@ -41,7 +75,27 @@ namespace HomestayBookingAPI.Services.PlaceServices
             {
                 await _context.Places.AddAsync(place);
                 await _context.SaveChangesAsync();
-                return place;
+                return new PlaceResponse
+                {
+                    Id = place.Id,
+                    Name = place.Name,
+                    Address = place.Address,
+                    Rating = place.Rating,
+                    NumOfRating = place.NumOfRating,
+                    Category = place.Category,
+                    Description = place.Description,
+                    Price = place.Price,
+                    MaxGuests = place.MaxGuests,
+                    Images = place.Images != null
+                        ? place.Images.Select(i => new PlaceImageDTO
+                        {
+                            Id = i.Id,
+                            ImageUrl = i.ImageUrl
+                        })
+                        .OrderBy(i => i.Id)
+                        .ToList()
+                        : new List<PlaceImageDTO>()
+                };
             }
             catch (DbUpdateException ex)
             {

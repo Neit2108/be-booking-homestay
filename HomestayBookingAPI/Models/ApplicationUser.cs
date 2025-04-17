@@ -36,5 +36,7 @@ namespace HomestayBookingAPI.Models
         [StringLength(1000)]
         public string? Bio { get; set; }
 
+        public List<Favourite> Favourites { get; set; } = new List<Favourite>();
+
     }
 }

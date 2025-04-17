@@ -1,4 +1,5 @@
 ﻿using HomestayBookingAPI.DTOs;
+using HomestayBookingAPI.DTOs.Place;
 using HomestayBookingAPI.Models;
 
 namespace HomestayBookingAPI.Services.PlaceServices
@@ -7,7 +8,7 @@ namespace HomestayBookingAPI.Services.PlaceServices
     {
         Task<List<PlaceDTO>> GetTopRatePlace(int limit);
 
-        Task<Place> AddPlaceAsync(Place place);
+        Task<PlaceResponse> AddPlaceAsync(PlaceRequest placeRequest);
 
         Task<PlaceDTO> GetPlaceByID(int id);
 
