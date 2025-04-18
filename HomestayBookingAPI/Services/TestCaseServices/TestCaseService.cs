@@ -17,6 +17,7 @@ namespace HomestayBookingAPI.Services.TestCaseServices
         {
             var testCase = new TestCaseModel
             {
+                TestId = testCaseRequest.TestId,
                 Name = testCaseRequest.Name,
                 Target = testCaseRequest.Target,
                 ImplementationSteps = testCaseRequest.ImplementationSteps,
@@ -31,6 +32,7 @@ namespace HomestayBookingAPI.Services.TestCaseServices
             return new TestCaseResponse
             {
                 Id = testCase.Id,
+                TestId = testCase.TestId,
                 Name = testCase.Name,
                 Target = testCase.Target,
                 ImplementationSteps = testCase.ImplementationSteps,
@@ -48,6 +50,7 @@ namespace HomestayBookingAPI.Services.TestCaseServices
             return testCases.Select(tc => new TestCaseResponse
             {
                 Id = tc.Id,
+                TestId = tc.TestId,
                 Name = tc.Name,
                 Target = tc.Target,
                 ImplementationSteps = tc.ImplementationSteps,
@@ -69,6 +72,7 @@ namespace HomestayBookingAPI.Services.TestCaseServices
             return new TestCaseResponse
             {
                 Id = testCase.Id,
+                TestId = testCase.TestId,
                 Name = testCase.Name,
                 Target = testCase.Target,
                 ImplementationSteps = testCase.ImplementationSteps,

@@ -384,6 +384,13 @@ namespace HomestayBookingAPI.Services.BookingServices
             return bookings;
         }
 
+        public async Task<bool> HasConfirmedBookingAsync(string userId, int placeId)
+        {
+            var hasConfirmedBooking = await _context.Bookings
+                .AnyAsync(b => b.UserId == userId && b.PlaceId == placeId && b.Status == BookingStatus.Confirmed);
+            return hasConfirmedBooking;
+        }
+
         public async Task<bool> UpdateBookingStatusAsync(int id, BookingStatus status, string currentRole, string rejectReason = "Không xác định")
         {
             using var transaction = await _context.Database.BeginTransactionAsync();

@@ -4,6 +4,7 @@ using HomestayBookingAPI.Services.ProfileServices;
 using HomestayBookingAPI.Services.UserServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace HomestayBookingAPI.Controllers
@@ -123,6 +124,41 @@ namespace HomestayBookingAPI.Controllers
                 }
 
             });
+        }
+
+        [HttpGet("bulk")]
+        [Authorize(AuthenticationSchemes = "Bearer", Roles = "Admin, Landlord")]
+        public async Task<IActionResult> GetUserBulk([FromQuery] string ids)
+        {
+            if(string.IsNullOrEmpty(ids))
+            {
+                return BadRequest(new { message = "Không có id người dùng nào được cung cấp" });
+            }
+            var userIds = ids.Split(',').Select(id => id.Trim()).ToList();
+            if(!userIds.Any())
+            {
+                return BadRequest(new { message = "Không có id người dùng nào được cung cấp" });
+            }
+            try
+            {
+                var users = await _context.Users
+                    .Where(u => userIds.Contains(u.Id))
+                    .Select(u => new
+                    {
+                        id = u.Id,
+                        name = u.FullName ?? "Unknown User",
+                        email = u.Email
+                    })
+                    .ToListAsync();
+
+                return Ok(users);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving users");
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi truy xuất thông tin người dùng" });
+            }
+
         }
 
     }

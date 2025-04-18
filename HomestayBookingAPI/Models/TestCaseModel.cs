@@ -8,6 +8,9 @@ namespace HomestayBookingAPI.Models
         [Key]
         public int Id { get; set; }
 
+        [Column(TypeName = "text")]
+        public string TestId { get; set; }
+
         [Required]
         [Column(TypeName = "text")]
         public string Name { get; set; }

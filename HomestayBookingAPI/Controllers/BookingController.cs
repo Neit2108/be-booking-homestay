@@ -232,5 +232,25 @@ namespace HomestayBookingAPI.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, $"Error rejecting booking: {ex.Message}");
             }
         }
+
+        [HttpGet("can-comment/{placeId}")]
+        [Authorize(AuthenticationSchemes = "Bearer")]
+        public async Task<IActionResult> CanComment(int placeId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { message = "Invalid user authentication" });
+            }
+            var hasConfirmedBooking = await _bookingService.HasConfirmedBookingAsync(userId, placeId);
+            if (hasConfirmedBooking)
+            {
+                return Ok(new { canComment = true });
+            }
+            else
+            {
+                return Ok(new { canComment = false, message = "Bạn không thể bình luận vì chưa có đơn đặt nào" });
+            }
+        }
     }
 }

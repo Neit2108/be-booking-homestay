@@ -21,5 +21,8 @@ namespace HomestayBookingAPI.Models
 
         [ForeignKey("PlaceId")]
         public Place Place { get; set; }
+
+        [NotMapped]
+        public uint RowVersion { get; set; }
     }
 }

@@ -16,6 +16,8 @@ namespace HomestayBookingAPI.Data
         public DbSet<Voucher> Vouchers { get; set; }
         public DbSet<TestCaseModel> TestCases { get; set; }
         public DbSet<Favourite> Favourites { get; set; } 
+        public DbSet<Comment> Comments { get; set; }
+        public DbSet<CommentImage> CommentImages { get; set; }
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
@@ -63,6 +65,10 @@ namespace HomestayBookingAPI.Data
                 .HasOne(f => f.Place)
                 .WithMany(p => p.Favourites)
                 .HasForeignKey(f => f.PlaceId);
+
+            modelBuilder.Entity<TopRatePlaces>()
+                .Property<uint>("xmin") 
+                .IsRowVersion();
 
             base.OnModelCreating(modelBuilder);
             // Xóa Asp

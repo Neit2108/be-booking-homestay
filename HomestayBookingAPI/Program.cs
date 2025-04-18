@@ -4,6 +4,7 @@ using HomestayBookingAPI.Data;
 using HomestayBookingAPI.Models;
 using HomestayBookingAPI.Services.AuthService;
 using HomestayBookingAPI.Services.BookingServices;
+using HomestayBookingAPI.Services.CommentServices;
 using HomestayBookingAPI.Services.EmailServices;
 using HomestayBookingAPI.Services.ImageServices;
 using HomestayBookingAPI.Services.JwtServices;
@@ -11,6 +12,7 @@ using HomestayBookingAPI.Services.NotifyServices;
 using HomestayBookingAPI.Services.OwnerServices;
 using HomestayBookingAPI.Services.PlaceServices;
 using HomestayBookingAPI.Services.ProfileServices;
+using HomestayBookingAPI.Services.StatisticsServices;
 using HomestayBookingAPI.Services.TestCaseServices;
 using HomestayBookingAPI.Services.TopRatePlaceServices;
 using HomestayBookingAPI.Services.UserServices;
@@ -100,6 +102,8 @@ builder.Services.AddScoped<INotifyService, NotifyService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<ITestCaseService, TestCaseService>();
+builder.Services.AddScoped<IStatisticsService, StatisticsService>();
+builder.Services.AddScoped<ICommentService, CommentService>();
 builder.Services.AddScoped<HttpClient>();
 builder.Services.AddLogging(logging =>
 {

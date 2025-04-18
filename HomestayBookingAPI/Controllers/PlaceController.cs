@@ -1,10 +1,12 @@
-﻿using HomestayBookingAPI.DTOs;
+﻿using HomestayBookingAPI.Data;
+using HomestayBookingAPI.DTOs;
 using HomestayBookingAPI.DTOs.Place;
 using HomestayBookingAPI.Models;
 using HomestayBookingAPI.Services.PlaceServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 
@@ -15,10 +17,12 @@ namespace HomestayBookingAPI.Controllers
     public class PlaceController : ControllerBase
     {
         private readonly IPlaceService _placeService;
+        private readonly ApplicationDbContext _context;
 
-        public PlaceController(IPlaceService placeService)
+        public PlaceController(IPlaceService placeService, ApplicationDbContext context)
         {
             _placeService = placeService;
+            _context = context;
         }
 
         [HttpGet("top-rating")]
@@ -120,6 +124,40 @@ namespace HomestayBookingAPI.Controllers
                 return StatusCode(500, ex.Message);
             }
 
+        }
+
+        [HttpGet("bulk")]
+        [Authorize(AuthenticationSchemes = "Bearer", Roles = "Admin, Landlord")]
+        public async Task<IActionResult> GetPlacesBulk([FromQuery] string ids)
+        {
+            if(string.IsNullOrEmpty(ids.ToString()))
+            {
+                return BadRequest("Không có id nào được cung cấp á");
+            }
+            var placeIds = ids.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                          .Select(id => int.Parse(id.Trim()))
+                          .ToList();
+            if (!placeIds.Any())
+            {
+                return BadRequest("Không có id nào được cung cấp");
+            }
+            try
+            {
+                var places = await _context.Places
+                    .Where(p => placeIds.Contains(p.Id))
+                    .Select(p => new
+                    {
+                        id = p.Id,
+                        name = p.Name ?? "Unknown Place",
+                        address = p.Address
+                    })
+                    .ToListAsync();
+                return Ok(places);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Lỗi khi lấy danh sách địa điểm: {ex.Message}");
+            }
         }
     }
 }

@@ -15,5 +15,6 @@ namespace HomestayBookingAPI.Services.BookingServices
         Task<bool> DeleteBookingAsync(int id);
         Task<bool> CheckAvailabilityAsync(int placeId, DateTime startDate, DateTime endDate);
         Task<double> CalculateTotalPriceAsync(BookingRequest bookingRequest);
+        Task<bool> HasConfirmedBookingAsync(string userId, int placeId);
     }
 }

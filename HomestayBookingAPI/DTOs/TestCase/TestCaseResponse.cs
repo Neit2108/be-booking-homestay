@@ -3,6 +3,7 @@
     public class TestCaseResponse
     {
         public int Id { get; set; }
+        public string TestId { get; set; }
         public string Name { get; set; }
         public string Target { get; set; }
         public string ImplementationSteps { get; set; }
