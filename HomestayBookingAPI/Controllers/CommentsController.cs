@@ -11,9 +11,11 @@ namespace HomestayBookingAPI.Controllers
     public class CommentsController : ControllerBase
     {
         private readonly ICommentService _commentService;
-        public CommentsController(ICommentService commentService)
+        private readonly ILogger<CommentsController> _logger;
+        public CommentsController(ICommentService commentService, ILogger<CommentsController> logger)
         {
             _commentService = commentService;
+            _logger = logger;
         }
 
         [HttpGet("{id}")]
@@ -40,11 +42,35 @@ namespace HomestayBookingAPI.Controllers
         {
             try
             {
+                // Validate required fields
+                if (string.IsNullOrWhiteSpace(commentRequest.Content))
+                {
+                    return BadRequest(new { message = "Comment content is required" });
+                }
+
+                if (commentRequest.Rating < 1 || commentRequest.Rating > 5)
+                {
+                    return BadRequest(new { message = "Rating must be between 1 and 5" });
+                }
+
+                // Ensure SenderId is set if not provided
+                if (string.IsNullOrEmpty(commentRequest.SenderId))
+                {
+                    commentRequest.SenderId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                    if (string.IsNullOrEmpty(commentRequest.SenderId))
+                    {
+                        return BadRequest(new { message = "User ID not found" });
+                    }
+                }
+
+                // commentImages can be null or empty - we've fixed the service to handle this
+
                 var result = await _commentService.CreateCommentAsync(commentRequest);
                 return CreatedAtAction(nameof(GetCommentById), new { id = result.Id }, result);
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error creating comment: {Message}", ex.Message);
                 return BadRequest(new { message = ex.Message });
             }
         }

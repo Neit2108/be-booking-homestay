@@ -32,7 +32,7 @@ namespace HomestayBookingAPI.Models
         [ForeignKey("PlaceId")]
         public virtual Place Place { get; set; }
 
-        public List<CommentImage> Images { get; set; }
+        public List<CommentImage>? Images { get; set; }
 
     }
 }

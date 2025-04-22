@@ -70,6 +70,12 @@ namespace HomestayBookingAPI.Data
                 .Property<uint>("xmin") 
                 .IsRowVersion();
 
+            modelBuilder.Entity<Comment>()
+               .HasMany(c => c.Images)
+               .WithOne(i => i.Comment)
+               .HasForeignKey(i => i.CommentId)
+               .OnDelete(DeleteBehavior.Cascade);
+
             base.OnModelCreating(modelBuilder);
             // Xóa Asp
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())

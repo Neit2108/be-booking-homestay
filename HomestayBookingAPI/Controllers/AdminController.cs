@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Authentication;
+﻿using HomestayBookingAPI.DTOs.User;
+using HomestayBookingAPI.Services.UserServices;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -7,41 +9,18 @@ namespace HomestayBookingAPI.Controllers
     [Route("admin")]
     public class AdminController : Controller
     {
-        [HttpGet("login")]
-        public IActionResult Login() => View(); // trả về form login
+        private readonly IUserService _userService;
 
-        [HttpPost("login")]
-        public async Task<IActionResult> Login(string username, string password)
+        [HttpGet("all-user")]
+        public async Task<ActionResult<IEnumerable<UserResponse>>> GetAllUser()
         {
-            // Giả sử có admin hardcoded hoặc lấy từ DB
-            if (username == "Admin@homies.com" && password == "Admin@123")
+            var users = await _userService.GetAllUsersAsync();
+            if (users == null)
             {
-                var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, username),
-                new Claim(ClaimTypes.Role, "Admin")
-            };
-
-                var claimsIdentity = new ClaimsIdentity(claims, "HangfireCookie");
-
-                var authProperties = new AuthenticationProperties
-                {
-                    IsPersistent = true
-                };
-
-                await HttpContext.SignInAsync("HangfireCookie", new ClaimsPrincipal(claimsIdentity), authProperties);
-
-                return Redirect("/hangfire");
+                return NotFound(new { message = "Không tìm thấy người dùng" });
             }
+            return Ok(users);
 
-            return Unauthorized();
-        }
-
-        [HttpGet("logout")]
-        public async Task<IActionResult> Logout()
-        {
-            await HttpContext.SignOutAsync("HangfireCookie");
-            return Redirect("/admin/login");
         }
     }
 }

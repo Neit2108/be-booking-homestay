@@ -1,4 +1,5 @@
-﻿using Hangfire;
+﻿using CloudinaryDotNet;
+using Hangfire;
 using Hangfire.PostgreSql;
 using HomestayBookingAPI.Data;
 using HomestayBookingAPI.Models;
@@ -29,6 +30,14 @@ using System.Text;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var cloudinaryConfig = builder.Configuration.GetSection("Cloudinary");
+var cloudName = cloudinaryConfig["CloudName"];
+var apiKey = cloudinaryConfig["ApiKey"];
+var apiSecret = cloudinaryConfig["ApiSecret"];
+
+var account = new Account(cloudName, apiKey, apiSecret);
+var cloudinary = new Cloudinary(account);
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -105,6 +114,7 @@ builder.Services.AddScoped<ITestCaseService, TestCaseService>();
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 builder.Services.AddScoped<ICommentService, CommentService>();
 builder.Services.AddScoped<HttpClient>();
+builder.Services.AddSingleton(cloudinary);
 builder.Services.AddLogging(logging =>
 {
     logging.ClearProviders(); 

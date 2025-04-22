@@ -38,27 +38,29 @@ namespace HomestayBookingAPI.Services.CommentServices
                     _logger.LogWarning("Người dùng chưa hoàn thành booking ở địa điểm này.");
                     throw new Exception("Người dùng chưa hoàn thành booking ở địa điểm này.");
                 }
+                _logger.LogInformation("Số ảnh được chọn" + commentRequest.commentImages.Count.ToString());
 
                 var commentImages = new List<CommentImage>();
-                if (commentRequest.commentImages != null && commentRequest.commentImages.Any())
+                if (commentRequest.commentImages != null)
                 {
-                    foreach (var imageFile in commentRequest.commentImages)
+                            foreach (var imageFile in commentRequest.commentImages)
+                            {
+                                var imageUrl = await _imageService.UploadImageAsync(imageFile, "comments");
+                                if (imageUrl != null)
+                                {
+                                    commentImages.Add(new CommentImage { ImageUrl = imageUrl });
+                                }
+                                else
+                                {
+                                    _logger.LogWarning("Lỗi tải ảnh.");
+                                }
+                            }
+                    _logger.LogInformation(commentImages.Count.ToString());
+                    if (!commentImages.Any())
                     {
-                        var imageUrl = await _imageService.UploadImageAsync(imageFile);
-                        if (imageUrl != null)
-                        {
-                            commentImages.Add(new CommentImage { ImageUrl = imageUrl });
-                        }
-                        else
-                        {
-                            _logger.LogWarning("Lỗi tải ảnh.");
-                        }
+                        _logger.LogError("Không ảnh nào được thêm.");
+                        throw new Exception("Không ảnh nào được thêm.");
                     }
-                }
-                if (!commentImages.Any())
-                {
-                    _logger.LogError("Không ảnh nào được thêm.");
-                    throw new Exception("Không ảnh nào được thêm.");
                 }
 
                 var comment = new Comment
@@ -72,10 +74,11 @@ namespace HomestayBookingAPI.Services.CommentServices
                     Images = commentImages
                 };
 
-                await UpdateRatingAsync(commentRequest.PlaceId); // Cập nhật rating cho địa điểm
-
+               
                 await _context.Comments.AddAsync(comment);
                 await _context.SaveChangesAsync();
+
+                await UpdateRatingAsync(commentRequest.PlaceId);
 
                 return new CommentResponse
                 {
@@ -244,6 +247,7 @@ namespace HomestayBookingAPI.Services.CommentServices
                 place.NumOfRating = 0;
             }
             _context.Places.Update(place);
+            await _context.SaveChangesAsync();
         }
     }
 }

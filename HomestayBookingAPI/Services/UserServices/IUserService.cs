@@ -1,4 +1,5 @@
-﻿using HomestayBookingAPI.Models;
+﻿using HomestayBookingAPI.DTOs.User;
+using HomestayBookingAPI.Models;
 
 namespace HomestayBookingAPI.Services.UserServices
 {
@@ -6,5 +7,6 @@ namespace HomestayBookingAPI.Services.UserServices
     {
         Task<ApplicationUser> GetUserByID(string id);
         Task<string> GetUserRoleAsync(string id);
+        Task<IEnumerable<UserResponse>> GetAllUsersAsync();
     }
 }

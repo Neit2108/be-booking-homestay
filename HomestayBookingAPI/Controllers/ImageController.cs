@@ -40,7 +40,7 @@ namespace HomestayBookingAPI.Controllers
                 return NotFound(new { message = "Không tìm thấy người dùng" });
             }
 
-            var imageUrl = await _imageService.UploadImageAsync(file);
+            var imageUrl = await _imageService.UploadImageAsync(file, "avatars");
             if (imageUrl == null)
             {
                 return BadRequest(new { message = "Không thể tải ảnh lên" });
@@ -72,7 +72,7 @@ namespace HomestayBookingAPI.Controllers
                 return NotFound(new { message = "Không tìm thấy người dùng" });
             }
 
-            var imageUrl = await _imageService.UpdateImageAsync(user.AvatarUrl, file);
+            var imageUrl = await _imageService.UpdateImageAsync(user.AvatarUrl, file, "avatars");
             if (imageUrl == null)
             {
                 return BadRequest(new { message = "Không thể cập nhật ảnh" });

@@ -33,7 +33,7 @@ namespace HomestayBookingAPI.Services.PlaceServices
             {
                 foreach (var imageFile in placeRequest.Images)
                 {
-                    var imageUrl = await _imageService.UploadImageAsync(imageFile);
+                    var imageUrl = await _imageService.UploadImageAsync(imageFile, "places");
                     if (imageUrl != null)
                     {
                         placeImages.Add(new PlaceImage { ImageUrl = imageUrl });
@@ -322,7 +322,7 @@ namespace HomestayBookingAPI.Services.PlaceServices
             {
                 try
                 {
-                    var imageUrl = await _imageService.UploadImageAsync(image);
+                    var imageUrl = await _imageService.UploadImageAsync(image, "places");
                     if (imageUrl == null)
                     {
                         _logger.LogError("Image not uploaded");

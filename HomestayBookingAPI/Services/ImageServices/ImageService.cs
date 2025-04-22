@@ -1,4 +1,6 @@
 ﻿
+using CloudinaryDotNet.Actions;
+using CloudinaryDotNet;
 using HomestayBookingAPI.Services.PlaceServices;
 using HomestayBookingAPI.Services.UserServices;
 using System.Net.Http.Headers;
@@ -20,9 +22,10 @@ namespace HomestayBookingAPI.Services.ImageServices
         private readonly string _imgurClientId;
         private readonly string _homestayAlbumId;
         private readonly string _userAlbumId;
+        private readonly Cloudinary _cloudinary;
         private const string IMGUR_UPLOAD_URL = "https://api.imgur.com/3/image";
 
-        public ImageService(IUserService userService, IWebHostEnvironment webHostEnvironment, ILogger<ImageService> logger, HttpClient httpClient, IConfiguration configuration)
+        public ImageService(IUserService userService, IWebHostEnvironment webHostEnvironment, ILogger<ImageService> logger, HttpClient httpClient, IConfiguration configuration, Cloudinary cloudinary)
         {
             _userService = userService;
             _webHostEnvironment = webHostEnvironment;
@@ -31,6 +34,7 @@ namespace HomestayBookingAPI.Services.ImageServices
             _imgurClientId = configuration["Imgur:ClientId"];
             _homestayAlbumId = configuration["Imgur:PlaceAlbumId"];
             _userAlbumId = configuration["Imgur:UserAlbumId"];
+            _cloudinary = cloudinary;
         }
 
         public async Task<bool> DeleteImageAsync(string? imageUrl)
@@ -48,7 +52,7 @@ namespace HomestayBookingAPI.Services.ImageServices
             return false;
         }
 
-        public async Task<string?> UpdateImageAsync(string? oldImageUrl, IFormFile file)
+        public async Task<string?> UpdateImageAsync(string? oldImageUrl, IFormFile file, string folder)
         {
             if (!string.IsNullOrEmpty(oldImageUrl))
             {
@@ -57,28 +61,44 @@ namespace HomestayBookingAPI.Services.ImageServices
                     File.Delete(oldFilePath);
             }
 
-            return await UploadImageAsync(file);
+            return await UploadImageAsync(file, folder);
         }
 
-        public async Task<string?> UploadImageAsync(IFormFile file)
+        public async Task<string?> UploadImageAsync(IFormFile file, string folder)
         {
             if (file == null)
             {
                 _logger.LogWarning("No file uploaded");
                 return null;
             }
-            var uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads");
-            Directory.CreateDirectory(uploadsFolder);
 
-            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
-            var filePath = Path.Combine(uploadsFolder, fileName);
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            try
             {
+                // Đọc file vào MemoryStream
+                using var stream = new MemoryStream();
                 await file.CopyToAsync(stream);
-            }
+                stream.Position = 0;
 
-            return $"https://localhost:7284/uploads/{fileName}";
+                // Tạo file description cho Cloudinary
+                var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
+                var uploadParams = new ImageUploadParams
+                {
+                    File = new FileDescription(fileName, stream),
+                    Folder = folder, // Sử dụng thư mục được truyền vào (avatars, locations, comments)
+                    Transformation = new Transformation().Width(800).Quality("auto") // Tùy chọn: tối ưu ảnh
+                };
+
+                // Tải lên Cloudinary
+                var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+
+                // Trả về URL công khai
+                return uploadResult.SecureUrl.ToString();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading image to Cloudinary for folder {Folder}", folder);
+                return null;
+            }
         }
 
 
