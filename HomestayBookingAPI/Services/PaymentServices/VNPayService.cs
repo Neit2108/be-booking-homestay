@@ -1,0 +1,277 @@
+﻿using HomestayBookingAPI.Data;
+using HomestayBookingAPI.DTOs.Payment;
+using HomestayBookingAPI.Models.Enum;
+using HomestayBookingAPI.Models;
+using HomestayBookingAPI.Services.BookingServices;
+using HomestayBookingAPI.Services.NotifyServices;
+using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
+using HomestayBookingAPI.Utils;
+
+namespace HomestayBookingAPI.Services.PaymentServices
+{
+    public class VNPayService : IVNPayService
+    {
+        private readonly ApplicationDbContext _context;
+        private readonly IOptions<VNPayConfig> _vnpayConfig;
+        private readonly ILogger<VNPayService> _logger;
+        private readonly INotifyService _notifyService;
+        private readonly IBookingService _bookingService;
+        private readonly IHttpClientFactory _httpClientFactory;
+
+        public VNPayService(
+            ApplicationDbContext context,
+            IOptions<VNPayConfig> vnpayConfig,
+            ILogger<VNPayService> logger,
+            INotifyService notifyService,
+            IBookingService bookingService,
+            IHttpClientFactory httpClientFactory)
+        {
+            _context = context;
+            _vnpayConfig = vnpayConfig;
+            _logger = logger;
+            _notifyService = notifyService;
+            _bookingService = bookingService;
+            _httpClientFactory = httpClientFactory;
+        }
+
+        public async Task<VNPayCreateResponse> CreatePaymentUrlAsync(VNPayCreateRequest request, string ipAddress)
+        {
+            var booking = await _context.Bookings
+                .Include(b => b.User)
+                .FirstOrDefaultAsync(b => b.Id == request.BookingId);
+
+            if (booking == null)
+            {
+                throw new Exception($"Booking with ID {request.BookingId} not found");
+            }
+
+            // Kiểm tra xem booking đã được thanh toán chưa
+            var existingPayment = await _context.Payments
+                .FirstOrDefaultAsync(p => p.BookingId == request.BookingId && p.Status == "Success");
+
+            if (existingPayment != null)
+            {
+                throw new Exception("This booking has already been paid");
+            }
+
+            // Tạo mới payment record
+            var payment = new Payment
+            {
+                BookingId = booking.Id,
+                UserId = booking.UserId,
+                Amount = booking.TotalPrice,
+                PaymentMethod = "VNPAY",
+                Status = "Pending",
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _context.Payments.AddAsync(payment);
+            await _context.SaveChangesAsync();
+
+            var vnpay = new VnPayLibrary();
+            vnpay.AddRequestData("vnp_Version", "2.1.0");
+            vnpay.AddRequestData("vnp_Command", "pay");
+            vnpay.AddRequestData("vnp_TmnCode", _vnpayConfig.Value.TmnCode);
+            vnpay.AddRequestData("vnp_Amount", ((long)(booking.TotalPrice * 100)).ToString()); // Nhân 100 vì VNPay tính tiền theo VND * 100
+            vnpay.AddRequestData("vnp_CreateDate", DateTime.Now.ToString("yyyyMMddHHmmss"));
+            vnpay.AddRequestData("vnp_CurrCode", "VND");
+            vnpay.AddRequestData("vnp_IpAddr", ipAddress);
+            vnpay.AddRequestData("vnp_Locale", request.Locale ?? "vn");
+            vnpay.AddRequestData("vnp_OrderInfo", request.OrderInfo ?? $"Thanh toán đặt phòng #{booking.Id}");
+            vnpay.AddRequestData("vnp_OrderType", request.OrderType ?? "270001"); // Mã danh mục hàng hóa
+            vnpay.AddRequestData("vnp_ReturnUrl", !string.IsNullOrEmpty(request.ReturnUrl) ? request.ReturnUrl : _vnpayConfig.Value.ReturnUrl);
+            vnpay.AddRequestData("vnp_TxnRef", payment.Id.ToString()); // Sử dụng payment ID làm mã tham chiếu
+            vnpay.AddRequestData("vnp_ExpireDate", DateTime.Now.AddMinutes(15).ToString("yyyyMMddHHmmss")); // Thời gian hết hạn
+
+            // Tạo URL QR
+            string paymentUrl = vnpay.CreateRequestUrl(_vnpayConfig.Value.PaymentUrl, _vnpayConfig.Value.HashSecret);
+
+            // Cập nhật URL vào payment record
+            payment.PaymentUrl = paymentUrl;
+            payment.QrCodeUrl = paymentUrl; // Trong trường hợp này URL thanh toán cũng là URL QR
+            await _context.SaveChangesAsync();
+
+            return new VNPayCreateResponse
+            {
+                PaymentId = payment.Id,
+                PaymentUrl = paymentUrl,
+                QrCodeUrl = paymentUrl,
+                ExpireDate = DateTime.Now.AddMinutes(15)
+            };
+        }
+
+        public async Task<PaymentResponse> ProcessPaymentCallbackAsync(Dictionary<string, string> vnpayData)
+        {
+            // Xác thực dữ liệu callback từ VNPay
+            if (!vnpayData.TryGetValue("vnp_TxnRef", out var txnRef) ||
+                !vnpayData.TryGetValue("vnp_ResponseCode", out var responseCode) ||
+                !vnpayData.TryGetValue("vnp_TransactionStatus", out var transactionStatus) ||
+                !vnpayData.TryGetValue("vnp_SecureHash", out var secureHash))
+            {
+                throw new Exception("Invalid VNPay callback data");
+            }
+
+            // Validate transaction reference
+            if (!int.TryParse(txnRef, out int paymentId))
+            {
+                throw new Exception("Invalid payment ID");
+            }
+
+            var payment = await _context.Payments
+                .Include(p => p.Booking)
+                .FirstOrDefaultAsync(p => p.Id == paymentId);
+
+            if (payment == null)
+            {
+                throw new Exception($"Payment with ID {paymentId} not found");
+            }
+
+            // Validate secure hash
+            var vnpay = new VnPayLibrary();
+
+            // Copy all response data except secure hash to a new dictionary for validation
+            foreach (var kvp in vnpayData.Where(x => x.Key != "vnp_SecureHash" && x.Key != "vnp_SecureHashType"))
+            {
+                vnpay.AddResponseData(kvp.Key, kvp.Value);
+            }
+
+            // Verify secure hash
+            string inputHash = vnpayData["vnp_SecureHash"];
+            bool isValidSignature = vnpay.ValidateSignature(inputHash, _vnpayConfig.Value.HashSecret);
+
+            if (!isValidSignature)
+            {
+                _logger.LogWarning("Invalid VNPay secure hash");
+                throw new Exception("Invalid signature from VNPay");
+            }
+
+            // Process payment result
+            bool isSuccess = responseCode == "00" && transactionStatus == "00";
+            string paymentStatus = isSuccess ? "Success" : "Failed";
+
+            // Update payment record
+            payment.Status = paymentStatus;
+            payment.TransactionId = vnpayData.ContainsKey("vnp_TransactionNo") ? vnpayData["vnp_TransactionNo"] : null;
+
+            if (isSuccess)
+            {
+                payment.PaymentDate = DateTime.UtcNow;
+
+                // Update booking payment status
+                if (payment.Booking != null)
+                {
+                    payment.Booking.PaymentStatus = PaymentStatus.Paid;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Send notification
+            if (payment.Booking != null)
+            {
+                try
+                {
+                    // Thay bằng service thông báo của bạn
+                    if (isSuccess)
+                    {
+                        //await _notifyService.CreatePaymentSuccessNotificationAsync(payment.Booking);
+                    }
+                    else
+                    {
+                        //await _notifyService.CreatePaymentFailureNotificationAsync(payment.Booking);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error sending payment notification");
+                }
+            }
+
+            return new PaymentResponse
+            {
+                Id = payment.Id,
+                BookingId = payment.BookingId,
+                UserId = payment.UserId,
+                Amount = payment.Amount,
+                PaymentMethod = payment.PaymentMethod,
+                Status = payment.Status,
+                TransactionId = payment.TransactionId,
+                PaymentUrl = payment.PaymentUrl,
+                QrCodeUrl = payment.QrCodeUrl,
+                CreatedAt = payment.CreatedAt,
+                PaymentDate = payment.PaymentDate
+            };
+        }
+
+        public async Task<PaymentResponse> GetPaymentByIdAsync(int paymentId)
+        {
+            var payment = await _context.Payments
+                .FirstOrDefaultAsync(p => p.Id == paymentId);
+
+            if (payment == null)
+            {
+                return null;
+            }
+
+            return new PaymentResponse
+            {
+                Id = payment.Id,
+                BookingId = payment.BookingId,
+                UserId = payment.UserId,
+                Amount = payment.Amount,
+                PaymentMethod = payment.PaymentMethod,
+                Status = payment.Status,
+                TransactionId = payment.TransactionId,
+                PaymentUrl = payment.PaymentUrl,
+                QrCodeUrl = payment.QrCodeUrl,
+                CreatedAt = payment.CreatedAt,
+                PaymentDate = payment.PaymentDate
+            };
+        }
+
+        public async Task<IEnumerable<PaymentResponse>> GetPaymentsByBookingIdAsync(int bookingId)
+        {
+            var payments = await _context.Payments
+                .Where(p => p.BookingId == bookingId)
+                .ToListAsync();
+
+            return payments.Select(p => new PaymentResponse
+            {
+                Id = p.Id,
+                BookingId = p.BookingId,
+                UserId = p.UserId,
+                Amount = p.Amount,
+                PaymentMethod = p.PaymentMethod,
+                Status = p.Status,
+                TransactionId = p.TransactionId,
+                PaymentUrl = p.PaymentUrl,
+                QrCodeUrl = p.QrCodeUrl,
+                CreatedAt = p.CreatedAt,
+                PaymentDate = p.PaymentDate
+            });
+        }
+
+        public async Task<IEnumerable<PaymentResponse>> GetPaymentsByUserIdAsync(string userId)
+        {
+            var payments = await _context.Payments
+                .Where(p => p.UserId == userId)
+                .ToListAsync();
+
+            return payments.Select(p => new PaymentResponse
+            {
+                Id = p.Id,
+                BookingId = p.BookingId,
+                UserId = p.UserId,
+                Amount = p.Amount,
+                PaymentMethod = p.PaymentMethod,
+                Status = p.Status,
+                TransactionId = p.TransactionId,
+                PaymentUrl = p.PaymentUrl,
+                QrCodeUrl = p.QrCodeUrl,
+                CreatedAt = p.CreatedAt,
+                PaymentDate = p.PaymentDate
+            });
+        }
+    }
+}

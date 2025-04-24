@@ -6,11 +6,13 @@ using HomestayBookingAPI.Models;
 using HomestayBookingAPI.Services.AuthService;
 using HomestayBookingAPI.Services.BookingServices;
 using HomestayBookingAPI.Services.CommentServices;
+using HomestayBookingAPI.Services.ContactServices;
 using HomestayBookingAPI.Services.EmailServices;
 using HomestayBookingAPI.Services.ImageServices;
 using HomestayBookingAPI.Services.JwtServices;
 using HomestayBookingAPI.Services.NotifyServices;
 using HomestayBookingAPI.Services.OwnerServices;
+using HomestayBookingAPI.Services.PaymentServices;
 using HomestayBookingAPI.Services.PlaceServices;
 using HomestayBookingAPI.Services.ProfileServices;
 using HomestayBookingAPI.Services.StatisticsServices;
@@ -97,6 +99,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+builder.Services.Configure<VNPayConfig>(builder.Configuration.GetSection("VNPay"));
+
 // Thêm service
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -113,6 +117,8 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<ITestCaseService, TestCaseService>();
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 builder.Services.AddScoped<ICommentService, CommentService>();
+builder.Services.AddScoped<IContactService, ContactService>();
+builder.Services.AddScoped<IVNPayService, VNPayService>();
 builder.Services.AddScoped<HttpClient>();
 builder.Services.AddSingleton(cloudinary);
 builder.Services.AddLogging(logging =>

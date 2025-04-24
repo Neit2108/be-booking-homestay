@@ -1,6 +1,7 @@
 ﻿using HomestayBookingAPI.DTOs;
 using HomestayBookingAPI.DTOs.Place;
 using HomestayBookingAPI.Models;
+using HomestayBookingAPI.Models.Enum;
 using HomestayBookingAPI.Services.ImageServices;
 using HomestayBookingAPI.Services.PlaceServices;
 using Microsoft.AspNetCore.Identity;

@@ -1,6 +1,7 @@
 ﻿using HomestayBookingAPI.DTOs;
 using HomestayBookingAPI.DTOs.Place;
 using HomestayBookingAPI.Models;
+using HomestayBookingAPI.Models.Enum;
 
 namespace HomestayBookingAPI.Services.PlaceServices
 {
@@ -19,5 +20,6 @@ namespace HomestayBookingAPI.Services.PlaceServices
         Task<List<PlaceDTO>> GetSameCategoryPlaces(int id);
 
         Task<List<string>> UploadImagePlaceAsync(int placeId, List<IFormFile> files);
+        Task<bool> UpdatePlaceStatusAsync(UpdatePlaceStatusRequest request);
     }
 }

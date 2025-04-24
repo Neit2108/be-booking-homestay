@@ -18,6 +18,8 @@ namespace HomestayBookingAPI.Data
         public DbSet<Favourite> Favourites { get; set; } 
         public DbSet<Comment> Comments { get; set; }
         public DbSet<CommentImage> CommentImages { get; set; }
+        public DbSet<Contact> Contacts { get; set; } 
+        public DbSet<Payment> Payments { get; set; }
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
@@ -26,6 +28,18 @@ namespace HomestayBookingAPI.Data
 
         override protected void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<Payment>()
+            .HasOne(p => p.User)
+            .WithMany()
+            .HasForeignKey(p => p.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Payment>()
+                .HasOne(p => p.Booking)
+                .WithMany()
+                .HasForeignKey(p => p.BookingId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // Xóa Place thì xóa cả PlaceImage
             modelBuilder.Entity<Place>()
                 .HasMany(p => p.Images)
@@ -67,8 +81,12 @@ namespace HomestayBookingAPI.Data
                 .HasForeignKey(f => f.PlaceId);
 
             modelBuilder.Entity<TopRatePlaces>()
-                .Property<uint>("xmin") 
-                .IsRowVersion();
+                .Property<uint>("xmin")
+                .HasColumnName("xmin")
+                .HasColumnType("xid") // loại dữ liệu thực tế của `xmin`
+                .ValueGeneratedOnAddOrUpdate()
+                .IsConcurrencyToken();
+
 
             modelBuilder.Entity<Comment>()
                .HasMany(c => c.Images)

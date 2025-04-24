@@ -2,6 +2,7 @@
 using HomestayBookingAPI.DTOs;
 using HomestayBookingAPI.DTOs.Place;
 using HomestayBookingAPI.Models;
+using HomestayBookingAPI.Models.Enum;
 using HomestayBookingAPI.Services.PlaceServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -18,17 +19,19 @@ namespace HomestayBookingAPI.Controllers
     {
         private readonly IPlaceService _placeService;
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<PlaceController> _logger;
 
-        public PlaceController(IPlaceService placeService, ApplicationDbContext context)
+        public PlaceController(IPlaceService placeService, ApplicationDbContext context, ILogger<PlaceController> logger)
         {
             _placeService = placeService;
             _context = context;
+            _logger = logger;
         }
 
         [HttpGet("top-rating")]
         public async Task<ActionResult<List<PlaceDTO>>> GetTopRatingPlaces(int limit = 5)
         {
-            if(limit <= 0)
+            if (limit <= 0)
             {
                 return BadRequest("Số lượng phải lớn hơn 0");
             }
@@ -59,7 +62,7 @@ namespace HomestayBookingAPI.Controllers
         [Authorize(AuthenticationSchemes = "Bearer", Roles = "Admin, Landlord")]
         public async Task<ActionResult<List<PlaceDTO>>> GetAllPlacesForLandlord(string id)
         {
-            
+
             var places = await _placeService.GetAllPlacesOfLandlord(id);
             return Ok(places);
         }
@@ -79,7 +82,7 @@ namespace HomestayBookingAPI.Controllers
         [Authorize(AuthenticationSchemes = "Bearer", Roles = "Admin, Landlord")]
         public async Task<IActionResult> AddPlace([FromForm] PlaceRequest placeRequest)
         {
-            
+
             try
             {
                 var newPlace = await _placeService.AddPlaceAsync(placeRequest);
@@ -96,7 +99,7 @@ namespace HomestayBookingAPI.Controllers
         }
 
         [HttpPost("upload-image/{placeId}")]
-        public async Task<ActionResult<List<string>>> UploadImagePlace(int placeId,[FromForm] List<IFormFile> images)
+        public async Task<ActionResult<List<string>>> UploadImagePlace(int placeId, [FromForm] List<IFormFile> images)
         {
             if (images == null || images.Count == 0)
             {
@@ -112,7 +115,7 @@ namespace HomestayBookingAPI.Controllers
             {
                 var imageUrls = await _placeService.UploadImagePlaceAsync(placeId, images);
 
-                if(imageUrls == null || imageUrls.Count == 0)
+                if (imageUrls == null || imageUrls.Count == 0)
                 {
                     return BadRequest("Không có ảnh nào được tải lên");
                 }
@@ -130,7 +133,7 @@ namespace HomestayBookingAPI.Controllers
         [Authorize(AuthenticationSchemes = "Bearer", Roles = "Admin, Landlord")]
         public async Task<IActionResult> GetPlacesBulk([FromQuery] string ids)
         {
-            if(string.IsNullOrEmpty(ids.ToString()))
+            if (string.IsNullOrEmpty(ids.ToString()))
             {
                 return BadRequest("Không có id nào được cung cấp á");
             }
@@ -157,6 +160,79 @@ namespace HomestayBookingAPI.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, $"Lỗi khi lấy danh sách địa điểm: {ex.Message}");
+            }
+        }
+
+        [HttpPut("update-status")]
+        [Authorize(AuthenticationSchemes = "Bearer", Roles = "Admin, Landlord")]
+        public async Task<IActionResult> UpdatePlaceStatus([FromBody] UpdatePlaceStatusRequest request)
+        {
+            if (request == null)
+            {
+                _logger.LogWarning("Invalid request: request is null");
+                return BadRequest("Yêu cầu không hợp lệ");
+            }
+
+            // Nếu chuyển từ Active sang Inactive thì kiểm tra ngày
+            if (request.NewStatus == PlaceStatus.Inactive)
+            {
+                if (request.InactiveFrom == null && request.InactiveTo == null)
+                {
+                    _logger.LogWarning("Invalid request: missing dates for Inactive status");
+                    return BadRequest("Thiếu ngày tháng khi inactive");
+                }
+
+                if (request.InactiveFrom != null && request.InactiveTo != null && request.InactiveFrom > request.InactiveTo)
+                {
+                    _logger.LogWarning("Invalid request: InactiveFrom > InactiveTo");
+                    return BadRequest("Ngày bắt đầu không thể lớn hơn ngày kết thúc");
+                }
+            }
+
+            var place = await _context.Places.FindAsync(request.PlaceId);
+            if (place == null)
+            {
+                _logger.LogWarning($"Place not found with ID {request.PlaceId}");
+                return NotFound($"Không tìm thấy địa điểm với ID {request.PlaceId}");
+            }
+
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var currentUserRole = User.FindFirstValue(ClaimTypes.Role);
+
+            if (currentUserRole != "Admin" && place.OwnerId != currentUserId)
+            {
+                _logger.LogWarning($"User {currentUserId} not authorized to update status of place {request.PlaceId}");
+                return Forbid("Bạn không có quyền cập nhật trạng thái địa điểm này");
+            }
+
+            if (place.Status == request.NewStatus)
+            {
+                return BadRequest("Trạng thái không thay đổi");
+            }
+
+            try
+            {
+                var isUpdated = await _placeService.UpdatePlaceStatusAsync(request);
+                if (isUpdated)
+                {
+                    _logger.LogInformation($"Successfully updated status of place {request.PlaceId} to {request.NewStatus}");
+                    return Ok(new
+                    {
+                        message = "Cập nhật trạng thái thành công",
+                        placeId = request.PlaceId,
+                        status = request.NewStatus.ToString()
+                    });
+                }
+                else
+                {
+                    _logger.LogWarning($"Failed to update status of place {request.PlaceId}");
+                    return BadRequest("Cập nhật trạng thái thất bại");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error updating status of place {request.PlaceId}");
+                return StatusCode(500, $"Lỗi khi cập nhật trạng thái: {ex.Message}");
             }
         }
     }

@@ -1,5 +1,7 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using HomestayBookingAPI.Models.Enum;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace HomestayBookingAPI.Models
 {
@@ -37,6 +39,11 @@ namespace HomestayBookingAPI.Models
 
         [Required]
         public int MaxGuests { get; set; }
+
+        [Required]
+        [EnumDataType(typeof(PlaceStatus))]
+        [JsonConverter(typeof(JsonStringEnumConverter))]
+        public PlaceStatus Status { get; set; } = PlaceStatus.Pending;
 
         [Required]
         public string OwnerId { get; set; } 

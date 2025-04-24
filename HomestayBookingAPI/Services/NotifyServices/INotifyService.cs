@@ -7,6 +7,8 @@ namespace HomestayBookingAPI.Services.NotifyServices
         Task CreateNewBookingNotificationAsync(Booking booking, bool sendEmail = true); // Dungf khi 1 booking mới được tạo 
         Task NotifyBookingStatusChangeAsync(int bookingId, bool isAccepted, string rejectReason = "Không xác định"); // Dùng khi trạng thái booking thay đổi
         Task UpdateNotificationStatusAsync();
+        Task CreatePaymentSuccessNotificationAsync(Booking booking);
+        Task CreatePaymentFailureNotificationAsync(Booking booking);
 
     }
 }

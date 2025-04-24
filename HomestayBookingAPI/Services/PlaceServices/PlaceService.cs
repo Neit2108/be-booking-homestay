@@ -2,6 +2,8 @@
 using HomestayBookingAPI.DTOs;
 using HomestayBookingAPI.DTOs.Place;
 using HomestayBookingAPI.Models;
+using HomestayBookingAPI.Models.Enum;
+using HomestayBookingAPI.Services.BookingServices;
 using HomestayBookingAPI.Services.ImageServices;
 using HomestayBookingAPI.Services.TopRatePlaceServices;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +19,7 @@ namespace HomestayBookingAPI.Services.PlaceServices
         private readonly IImageService _imageService;
         private readonly ITopRateService _topRateService;
         private readonly ILogger<PlaceService> _logger;
+        private readonly IBookingService _bookingService;
 
         public PlaceService(ApplicationDbContext context, IImageService imageService, ILogger<PlaceService> logger, ITopRateService topRateService)
         {
@@ -58,6 +61,7 @@ namespace HomestayBookingAPI.Services.PlaceServices
                 Price = placeRequest.Price,
                 MaxGuests = placeRequest.MaxGuests,
                 OwnerId = placeRequest.OwnerId,
+                Status = PlaceStatus.Pending,
                 Images = placeImages,
             };
             if (place == null)
@@ -86,6 +90,7 @@ namespace HomestayBookingAPI.Services.PlaceServices
                     Description = place.Description,
                     Price = place.Price,
                     MaxGuests = place.MaxGuests,
+                    Status = place.Status.ToString(),
                     Images = place.Images != null
                         ? place.Images.Select(i => new PlaceImageDTO
                         {
@@ -122,6 +127,7 @@ namespace HomestayBookingAPI.Services.PlaceServices
                     Description = p.Description,
                     Price = p.Price,
                     MaxGuests = p.MaxGuests,
+                    Status = p.Status.ToString(),
                     Images = p.Images != null
                         ? p.Images.Select(i => new PlaceImageDTO
                         {
@@ -158,6 +164,7 @@ namespace HomestayBookingAPI.Services.PlaceServices
                     Description = p.Description,
                     Price = p.Price,
                     MaxGuests = p.MaxGuests,
+                    Status = p.Status.ToString(),
                     Images = p.Images != null
                             ? p.Images.Select(i => new PlaceImageDTO
                             {
@@ -196,6 +203,7 @@ namespace HomestayBookingAPI.Services.PlaceServices
                 Description = place.Description,
                 Price = place.Price,
                 MaxGuests = place.MaxGuests,
+                Status = place.Status.ToString(),
                 Images = place.Images.Select(i => new PlaceImageDTO
                 {
                     Id = i.Id,
@@ -235,6 +243,7 @@ namespace HomestayBookingAPI.Services.PlaceServices
                     Description = p.Description,
                     Price = p.Price,
                     MaxGuests = p.MaxGuests,
+                    Status = p.Status.ToString(),
                     Images = p.Images != null
                         ? p.Images.Select(i => new PlaceImageDTO
                         {
@@ -292,6 +301,7 @@ namespace HomestayBookingAPI.Services.PlaceServices
                 Description = p.Description,
                 Price = p.Price,
                 MaxGuests = p.MaxGuests,
+                Status = p.Status.ToString(),
                 Images = p.Images.Select(i => new PlaceImageDTO
                 {
                     Id = i.Id,
@@ -300,6 +310,175 @@ namespace HomestayBookingAPI.Services.PlaceServices
                 .OrderBy(i => i.Id) // sap xep lai theo thu tu id
                 .ToList()
             }).ToList();
+        }
+
+        public async Task<bool> UpdatePlaceStatusAsync(UpdatePlaceStatusRequest request)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var place = await _context.Places.FindAsync(request.PlaceId);
+                if (place == null)
+                {
+                    return false;
+                }
+
+                // Nếu chuyển từ Active sang Inactive
+                if (place.Status == PlaceStatus.Active && request.NewStatus == PlaceStatus.Inactive)
+                {
+                    // Kiểm tra có booking nào đã confirmed mà chưa kết thúc không
+                    var confirmedBookings = await _context.Bookings
+                        .Where(b => b.PlaceId == request.PlaceId &&
+                                   b.Status == BookingStatus.Confirmed &&
+                                   b.EndDate > DateTime.UtcNow)
+                        .OrderByDescending(b => b.EndDate)
+                        .ToListAsync();
+
+                    if (confirmedBookings.Any())
+                    {
+                        // Nếu ngày bắt đầu Inactive sớm hơn ngày kết thúc của booking cuối cùng
+                        var lastBookingEndDate = confirmedBookings.First().EndDate;
+
+                        if (request.InactiveFrom == null || request.InactiveFrom < lastBookingEndDate)
+                        {
+                            request.InactiveFrom = lastBookingEndDate.AddDays(1);
+                            _logger.LogInformation($"Adjusted InactiveFrom date to {request.InactiveFrom} due to existing bookings");
+                        }
+                    }
+
+                    // Cập nhật trạng thái Place
+                    place.Status = request.NewStatus;
+                    _context.Places.Update(place);
+
+                    // Cập nhật PlaceAvailable
+                    var startDate = request.InactiveFrom ?? DateTime.UtcNow;
+                    var endDate = request.InactiveTo ?? DateTime.MaxValue.AddYears(-100); // Giới hạn để tránh lỗi vượt quá datetime
+
+                    // Vấn đề có thể ở đây - chúng ta không nên tạo mới vô số bản ghi
+                    // Chỉ tạo từ ngày hiện tại đến 1 thời điểm hợp lý trong tương lai (ví dụ: 3 năm)
+                    // hoặc đến inactiveTo nếu có
+                    DateTime maxFutureDate = startDate.AddYears(3); // Giới hạn 3 năm vào tương lai
+                    if (request.InactiveTo.HasValue && request.InactiveTo.Value < maxFutureDate)
+                    {
+                        maxFutureDate = request.InactiveTo.Value;
+                    }
+
+                    // Lấy các PlaceAvailable hiện có trong khoảng thời gian
+                    var placeAvailables = await _context.PlaceAvailables
+                        .Where(pa => pa.PlaceId == request.PlaceId &&
+                                  pa.Date >= startDate &&
+                                  pa.Date <= maxFutureDate)
+                        .ToListAsync();
+
+                    // Cập nhật các bản ghi hiện có
+                    foreach (var pa in placeAvailables)
+                    {
+                        pa.IsAvailable = false;
+                        _context.PlaceAvailables.Update(pa);
+                    }
+
+                    // Tạo mới các bản ghi nếu không tồn tại
+                    // Lấy danh sách các ngày cần tạo mới
+                    var existingDates = placeAvailables.Select(pa => pa.Date.Date).ToHashSet();
+
+                    // Chỉ tạo bản ghi cho một khoảng thời gian hợp lý - không quá 365 ngày từ startDate
+                    DateTime limitEndDate = startDate.AddDays(365);
+                    if (maxFutureDate < limitEndDate)
+                    {
+                        limitEndDate = maxFutureDate;
+                    }
+
+                    // Sử dụng hàm helper để tạo danh sách ngày từ startDate đến limitEndDate
+                    var allDates = GenerateDateRange(startDate.Date, limitEndDate.Date);
+
+                    var newEntries = allDates
+                        .Where(d => !existingDates.Contains(d))
+                        .Select(d => new PlaceAvailable
+                        {
+                            PlaceId = request.PlaceId,
+                            Date = d,
+                            IsAvailable = false
+                        })
+                        .ToList();
+
+                    if (newEntries.Any())
+                    {
+                        await _context.PlaceAvailables.AddRangeAsync(newEntries);
+                    }
+
+                    // Xử lý các booking đang pending
+                    var pendingBookings = await _context.Bookings
+                        .Where(b => b.PlaceId == request.PlaceId &&
+                                  b.Status == BookingStatus.Pending &&
+                                  ((b.StartDate >= startDate && (request.InactiveTo == null || b.StartDate <= endDate)) ||
+                                   (b.EndDate >= startDate && (request.InactiveTo == null || b.EndDate <= endDate))))
+                        .ToListAsync();
+
+                    // Tự động từ chối các booking pending nếu trùng với thời gian inactive
+                    foreach (var booking in pendingBookings)
+                    {
+                        await _bookingService.UpdateBookingStatusAsync(booking.Id, BookingStatus.Cancelled, "Admin", "Homestay ngừng hoạt động");
+                    }
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    return true;
+                }
+                // Ngược lại nếu từ Inactive sang Active
+                else if (place.Status == PlaceStatus.Inactive && request.NewStatus == PlaceStatus.Active)
+                {
+                    // Cập nhật trạng thái Place
+                    place.Status = request.NewStatus;
+                    _context.Places.Update(place);
+
+                    // Lấy các PlaceAvailable từ hiện tại trở đi mà IsAvailable = false
+                    var futureUnavailableDates = await _context.PlaceAvailables
+                        .Where(pa => pa.PlaceId == request.PlaceId &&
+                                  pa.Date >= DateTime.UtcNow &&
+                                  !pa.IsAvailable)
+                        .ToListAsync();
+
+                    //foreach (var pa in futureUnavailableDates)
+                    //{
+                    //    pa.IsAvailable = true;
+                    //    _context.PlaceAvailables.Update(pa);
+                    //}
+                    // Xóa các bản ghi không cần thiết
+                    _context.PlaceAvailables.RemoveRange(futureUnavailableDates);
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    return true;
+                }
+                else
+                {
+                    // Chỉ đơn giản cập nhật trạng thái nếu không phải trường hợp đặc biệt
+                    place.Status = request.NewStatus;
+                    _context.Places.Update(place);
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, $"Error updating place status for PlaceId {request.PlaceId}");
+                throw;
+            }
+        }
+
+        private IEnumerable<DateTime> GenerateDateRange(DateTime startDate, DateTime endDate)
+        {
+            // Giới hạn số ngày tối đa để tránh vòng lặp vô tận
+            const int MaxDaysToGenerate = 365;
+
+            int daysCount = 0;
+            for (var date = startDate; date <= endDate && daysCount < MaxDaysToGenerate; date = date.AddDays(1))
+            {
+                yield return date;
+                daysCount++;
+            }
         }
 
         public async Task<List<string>> UploadImagePlaceAsync(int placeId, List<IFormFile> images)

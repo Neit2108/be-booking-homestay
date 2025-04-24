@@ -94,6 +94,167 @@ namespace HomestayBookingAPI.Services.NotifyServices
 
         }
 
+        public async Task CreatePaymentFailureNotificationAsync(Booking booking)
+        {
+            var customer = await _context.Users.FindAsync(booking.UserId);
+            var place = await _context.Places.FirstOrDefaultAsync(p => p.Id == booking.PlaceId);
+
+            if (customer == null || place == null)
+            {
+                throw new Exception("Customer or Place not found");
+            }
+
+            // Tạo token cho khách hàng
+            var customerToken = _jwtService.GenerateActionToken(customer.Id, NotificationType.PaymentFailure.ToString(), booking.Id, "Customer");
+
+            // Tạo thông báo cho khách hàng
+            var customerNotify = new Notification
+            {
+                RecipientId = customer.Id,
+                SenderId = "system",
+                BookingId = booking.Id,
+                Type = NotificationType.PaymentFailure,
+                Title = "Thanh toán không thành công",
+                Message = $"Thanh toán đặt phòng {place.Name} từ {booking.StartDate.ToShortDateString()} đến {booking.EndDate.ToShortDateString()} không thành công. Vui lòng thử lại.",
+                Url = $"{_baseUrl}/booking/payment/{booking.Id}",
+                Status = NotificationStatus.Pending,
+            };
+
+            try
+            {
+                // Tạo email cho khách hàng
+                var customerEmail = TemplateMail.PaymentFailureEmail(booking, customerNotify.Url);
+
+                // Gửi email qua Hangfire
+                var customerJobId = _backgroundJobClient.Enqueue(() => _emailService.SendEmailAsync(customer.Email, "Thanh toán không thành công", customerEmail));
+                customerNotify.JobId = customerJobId;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending payment failure email");
+                customerNotify.Status = NotificationStatus.Failed;
+            }
+
+            // Lưu thông báo vào database
+            _context.Notifications.Add(customerNotify);
+            await _context.SaveChangesAsync();
+        }
+
+        // Services/NotifyServices/NotifyService.cs
+        public async Task CreatePaymentSuccessNotificationAsync(Booking booking)
+        {
+            // Lấy thông tin người dùng và homestay
+            var customer = await _context.Users.FindAsync(booking.UserId);
+            var place = await _context.Places.Include(p => p.Owner).FirstOrDefaultAsync(p => p.Id == booking.PlaceId);
+            var landlord = place?.Owner;
+
+            if (customer == null || place == null || landlord == null)
+            {
+                throw new Exception("Customer, Place or Landlord not found");
+            }
+
+            // Tạo token cho khách hàng
+            var customerToken = _jwtService.GenerateActionToken(
+                customer.Id,
+                NotificationType.PaymentSuccess.ToString(),
+                booking.Id,
+                "Tenant"
+            );
+
+            // Tạo thông báo cho khách hàng
+            var customerNotify = new Notification
+            {
+                RecipientId = customer.Id,
+                SenderId = "system",
+                BookingId = booking.Id,
+                Type = NotificationType.PaymentSuccess,
+                Title = "Thanh toán thành công",
+                Message = $"Thanh toán đặt phòng tại {place.Name} từ {booking.StartDate.ToShortDateString()} đến {booking.EndDate.ToShortDateString()} đã thành công. Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi.",
+                Url = $"{_baseUrl}/bookings/{booking.Id}",
+                Status = NotificationStatus.Pending,
+                CreatedAt = DateTime.UtcNow,
+                IsRead = false
+            };
+
+            // Tạo token cho chủ nhà
+            var landlordToken = _jwtService.GenerateActionToken(
+                landlord.Id,
+                NotificationType.PaymentSuccess.ToString(),
+                booking.Id,
+                "Landlord"
+            );
+
+            // Tạo thông báo cho chủ nhà
+            var landlordNotify = new Notification
+            {
+                RecipientId = landlord.Id,
+                SenderId = "system",
+                BookingId = booking.Id,
+                Type = NotificationType.PaymentSuccess,
+                Title = "Thanh toán đặt phòng thành công",
+                Message = $"Khách hàng {customer.FullName} đã thanh toán thành công cho đặt phòng tại {place.Name} từ {booking.StartDate.ToShortDateString()} đến {booking.EndDate.ToShortDateString()}.",
+                Url = $"{_baseUrl}/landlord/bookings/{booking.Id}",
+                Status = NotificationStatus.Pending,
+                CreatedAt = DateTime.UtcNow,
+                IsRead = false
+            };
+
+            // Đầu tiên, thêm thông báo vào database
+            _context.Notifications.AddRange(customerNotify, landlordNotify);
+            await _context.SaveChangesAsync();
+
+            try
+            {
+                // Tạo email cho khách hàng
+                var customerEmailTemplate = TemplateMail.PaymentSuccessEmail(booking, customerNotify.Url);
+
+                // Tạo email cho chủ nhà
+                var landlordEmailTemplate = TemplateMail.LandlordPaymentNotificationEmail(booking, landlordNotify.Url);
+
+                // Gửi email qua Hangfire
+                var customerJobId = _backgroundJobClient.Enqueue(() =>
+                    _emailService.SendEmailAsync(
+                        customer.Email,
+                        "Xác nhận thanh toán thành công",
+                        customerEmailTemplate
+                    )
+                );
+
+                var landlordJobId = _backgroundJobClient.Enqueue(() =>
+                    _emailService.SendEmailAsync(
+                        landlord.Email,
+                        "Thông báo thanh toán từ khách hàng",
+                        landlordEmailTemplate
+                    )
+                );
+
+                // Cập nhật jobId trong notification
+                customerNotify.JobId = customerJobId;
+                landlordNotify.JobId = landlordJobId;
+
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending payment success notification emails for booking {BookingId}", booking.Id);
+
+                // Đánh dấu thông báo là thất bại nếu không gửi được email
+                customerNotify.Status = NotificationStatus.Failed;
+                landlordNotify.Status = NotificationStatus.Failed;
+
+                await _context.SaveChangesAsync();
+            }
+
+            // Cập nhật trạng thái booking
+            booking.PaymentStatus = PaymentStatus.Paid;
+            booking.UpdatedAt = DateTime.UtcNow;
+            _context.Bookings.Update(booking);
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Payment success notification created for booking {BookingId}", booking.Id);
+        }
+
         public async Task NotifyBookingStatusChangeAsync(int bookingId, bool isAccepted, string rejectReason = "Không xác định")
         {
             var booking = await _context.Bookings
