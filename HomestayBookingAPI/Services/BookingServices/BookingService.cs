@@ -207,7 +207,7 @@ namespace HomestayBookingAPI.Services.BookingServices
                 UserId = booking.UserId,
                 PlaceId = booking.PlaceId,
                 PlaceName = booking.Place.Name,
-                PlaceAdress = booking.Place.Address,
+                PlaceAddress = booking.Place.Address,
                 StartDate = booking.StartDate,
                 EndDate = booking.EndDate,
                 NumberOfGuests = booking.NumberOfGuests,
@@ -283,11 +283,14 @@ namespace HomestayBookingAPI.Services.BookingServices
 
             // Truy vấn và ánh xạ dữ liệu
             var bookings = await query
+                .Include(b => b.Place)
                 .Select(b => new BookingResponse
                 {
                     Id = b.Id,
                     UserId = b.UserId,
                     PlaceId = b.PlaceId,
+                    PlaceAddress = b.Place.Address,
+                    PlaceName = b.Place.Name,
                     StartDate = b.StartDate,
                     EndDate = b.EndDate,
                     NumberOfGuests = b.NumberOfGuests,
@@ -304,6 +307,7 @@ namespace HomestayBookingAPI.Services.BookingServices
         public async Task<BookingResponse> GetBookingByIdAsync(int id)
         {
             var booking = await _context.Bookings
+                .Include(b => b.Place)
                 .Where(b => b.Id == id)
                 .Select(b => new BookingResponse
                 {
@@ -311,7 +315,7 @@ namespace HomestayBookingAPI.Services.BookingServices
                     UserId = b.UserId,
                     PlaceId = b.PlaceId,
                     PlaceName = b.Place.Name,
-                    PlaceAdress = b.Place.Address,
+                    PlaceAddress = b.Place.Address,
                     StartDate = b.StartDate,
                     EndDate = b.EndDate,
                     NumberOfGuests = b.NumberOfGuests,
@@ -332,6 +336,7 @@ namespace HomestayBookingAPI.Services.BookingServices
             var place = await _placeService.GetPlaceByID(placeId);
             
             var bookings = await _context.Bookings
+                .Include(b => b.Place)
                 .Where(b => b.PlaceId == placeId)
                 .Select(b => new BookingResponse
                 {
@@ -339,7 +344,7 @@ namespace HomestayBookingAPI.Services.BookingServices
                     UserId = b.UserId,
                     PlaceId = b.PlaceId,
                     PlaceName = b.Place.Name,
-                    PlaceAdress = b.Place.Address,
+                    PlaceAddress = b.Place.Address,
                     StartDate = b.StartDate,
                     EndDate = b.EndDate,
                     NumberOfGuests = b.NumberOfGuests,
@@ -360,6 +365,7 @@ namespace HomestayBookingAPI.Services.BookingServices
         public async Task<IEnumerable<BookingResponse>> GetBookingsByUserIdAsync(string userId)
         {
             var bookings = await _context.Bookings
+                        .Include(b => b.Place)
                         .Where(b => b.UserId == userId)
                         .GroupJoin(_context.Places,
                             b => b.PlaceId,
@@ -372,7 +378,7 @@ namespace HomestayBookingAPI.Services.BookingServices
                                 UserId = x.Booking.UserId,
                                 PlaceId = x.Booking.PlaceId,
                                 PlaceName = x.Booking.Place.Name,
-                                PlaceAdress = x.Booking.Place.Address,
+                                PlaceAddress = x.Booking.Place.Address,
                                 StartDate = x.Booking.StartDate,
                                 EndDate = x.Booking.EndDate,
                                 NumberOfGuests = x.Booking.NumberOfGuests,

@@ -98,6 +98,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddHttpClient();
 
 builder.Services.Configure<VNPayConfig>(builder.Configuration.GetSection("VNPay"));
 

@@ -86,6 +86,8 @@ namespace HomestayBookingAPI.Services.CommentServices
                     Content = comment.Content,
                     Rating = comment.Rating,
                     SenderId = comment.SenderId,
+                    SenderName = comment.Sender.FullName,
+                    SenderAvatar = comment.Sender.AvatarUrl,
                     PlaceId = comment.PlaceId,
                     CreatedAt = comment.CreatedAt,
                     UpdatedAt = comment.UpdatedAt,
@@ -114,6 +116,7 @@ namespace HomestayBookingAPI.Services.CommentServices
             {
                 var comments = await _context.Comments
                     .Include(c => c.Images)
+                    .Include(c => c.Sender)
                     .ToListAsync();
                 if(comments == null || !comments.Any())
                 {
@@ -126,6 +129,8 @@ namespace HomestayBookingAPI.Services.CommentServices
                     Content = c.Content,
                     Rating = c.Rating,
                     SenderId = c.SenderId,
+                    SenderName = c.Sender.FullName,
+                    SenderAvatar = c.Sender.AvatarUrl,
                     PlaceId = c.PlaceId,
                     CreatedAt = c.CreatedAt,
                     UpdatedAt = c.UpdatedAt,
@@ -153,6 +158,7 @@ namespace HomestayBookingAPI.Services.CommentServices
             {
                 var comments = await _context.Comments
                     .Include(c => c.Images)
+                    .Include(c => c.Sender)
                     .Where(c => c.PlaceId == placeId)
                     .ToListAsync();
                 if(comments == null || !comments.Any())
@@ -167,6 +173,8 @@ namespace HomestayBookingAPI.Services.CommentServices
                     Rating = c.Rating,
                     SenderId = c.SenderId,
                     PlaceId = c.PlaceId,
+                    SenderName = c.Sender.FullName,
+                    SenderAvatar = c.Sender.AvatarUrl,
                     CreatedAt = c.CreatedAt,
                     UpdatedAt = c.UpdatedAt,
                     Images = c.Images != null
@@ -193,6 +201,7 @@ namespace HomestayBookingAPI.Services.CommentServices
             {
                 var comment = await _context.Comments
                     .Include(c => c.Images)
+                    .Include(c => c.Sender)
                     .FirstOrDefaultAsync(c => c.Id == id);
                 if (comment == null)
                 {
@@ -206,6 +215,8 @@ namespace HomestayBookingAPI.Services.CommentServices
                     Rating = comment.Rating,
                     SenderId = comment.SenderId,
                     PlaceId = comment.PlaceId,
+                    SenderName = comment.Sender.FullName,
+                    SenderAvatar = comment.Sender.AvatarUrl,
                     CreatedAt = comment.CreatedAt,
                     UpdatedAt = comment.UpdatedAt,
                     Images = comment.Images != null

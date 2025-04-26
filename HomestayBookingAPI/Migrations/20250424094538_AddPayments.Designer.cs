@@ -3,6 +3,7 @@ using System;
 using HomestayBookingAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HomestayBookingAPI.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250424094538_AddPayments")]
+    partial class AddPayments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -379,9 +382,11 @@ namespace HomestayBookingAPI.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("PaymentUrl")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("QrCodeUrl")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Status")
@@ -389,6 +394,7 @@ namespace HomestayBookingAPI.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("TransactionId")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("UserId")

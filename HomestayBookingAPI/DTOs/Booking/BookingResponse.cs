@@ -8,7 +8,7 @@ namespace HomestayBookingAPI.DTOs.Booking
         public string UserId { get; set; }
         public int PlaceId { get; set; }
         public string PlaceName { get; set; }
-        public string PlaceAdress { get; set; }
+        public string PlaceAddress { get; set; }
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public int NumberOfGuests { get; set; }

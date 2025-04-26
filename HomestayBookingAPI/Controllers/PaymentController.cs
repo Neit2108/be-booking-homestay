@@ -40,6 +40,7 @@ namespace HomestayBookingAPI.Controllers
         [HttpGet("callback")]
         public async Task<IActionResult> PaymentCallback()
         {
+            _logger.LogInformation("Received callback with data: {data}", string.Join(", ", HttpContext.Request.Query.Select(kvp => $"{kvp.Key}={kvp.Value}")));
             try
             {
                 // Lấy tất cả tham số từ query string
@@ -53,9 +54,17 @@ namespace HomestayBookingAPI.Controllers
 
                 var response = await _vnpayService.ProcessPaymentCallbackAsync(vnpayData);
 
+
+                return Ok(new
+                {
+                    paymentId = response.Id,
+                    status = response.Status,
+                    redirectUrl = $"{vnpayData["VNPay:ReturnUrl"]}?paymentId={response.Id}&status={response.Status}"
+                });
+
                 // Redirect to frontend payment result page
-                var redirectUrl = $"{vnpayData["vnp_ReturnUrl"]}?paymentId={response.Id}&status={response.Status}";
-                return Redirect(redirectUrl);
+                //var redirectUrl = $"{vnpayData["vnp_ReturnUrl"]}?paymentId={response.Id}&status={response.Status}";
+                //return Redirect(redirectUrl);
             }
             catch (Exception ex)
             {

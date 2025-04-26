@@ -7,6 +7,7 @@ using HomestayBookingAPI.Services.NotifyServices;
 using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
 using HomestayBookingAPI.Utils;
+using QRCoder;
 
 namespace HomestayBookingAPI.Services.PaymentServices
 {
@@ -33,6 +34,26 @@ namespace HomestayBookingAPI.Services.PaymentServices
             _notifyService = notifyService;
             _bookingService = bookingService;
             _httpClientFactory = httpClientFactory;
+        }
+
+        private string GenerateQRCodeBase64(string url)
+        {
+            try
+            {
+                QRCodeGenerator qrGenerator = new QRCodeGenerator();
+                QRCodeData qrCodeData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.Q);
+
+                // Sử dụng PngByteQRCode thay vì QRCode (phụ thuộc System.Drawing)
+                PngByteQRCode qrCode = new PngByteQRCode(qrCodeData);
+                byte[] qrCodeBytes = qrCode.GetGraphic(20); // Kích thước 20 pixel mỗi module
+
+                return Convert.ToBase64String(qrCodeBytes);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating QR code");
+                return null;
+            }
         }
 
         public async Task<VNPayCreateResponse> CreatePaymentUrlAsync(VNPayCreateRequest request, string ipAddress)
@@ -63,7 +84,10 @@ namespace HomestayBookingAPI.Services.PaymentServices
                 Amount = booking.TotalPrice,
                 PaymentMethod = "VNPAY",
                 Status = "Pending",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                TransactionId = "PENDING_" + Guid.NewGuid().ToString("N").Substring(0, 10),
+                PaymentUrl = "pending", // Giá trị tạm thời
+                QrCodeUrl = "pending"   // Giá trị tạm thời
             };
 
             await _context.Payments.AddAsync(payment);
@@ -83,13 +107,20 @@ namespace HomestayBookingAPI.Services.PaymentServices
             vnpay.AddRequestData("vnp_ReturnUrl", !string.IsNullOrEmpty(request.ReturnUrl) ? request.ReturnUrl : _vnpayConfig.Value.ReturnUrl);
             vnpay.AddRequestData("vnp_TxnRef", payment.Id.ToString()); // Sử dụng payment ID làm mã tham chiếu
             vnpay.AddRequestData("vnp_ExpireDate", DateTime.Now.AddMinutes(15).ToString("yyyyMMddHHmmss")); // Thời gian hết hạn
+            if (!string.IsNullOrEmpty(request.BankCode))
+            {
+                vnpay.AddRequestData("vnp_BankCode", request.BankCode);
+            }
 
-            // Tạo URL QR
+
+
+            // Tạo URL thanh toán
             string paymentUrl = vnpay.CreateRequestUrl(_vnpayConfig.Value.PaymentUrl, _vnpayConfig.Value.HashSecret);
+            
 
             // Cập nhật URL vào payment record
             payment.PaymentUrl = paymentUrl;
-            payment.QrCodeUrl = paymentUrl; // Trong trường hợp này URL thanh toán cũng là URL QR
+            payment.QrCodeUrl = paymentUrl;
             await _context.SaveChangesAsync();
 
             return new VNPayCreateResponse
@@ -97,12 +128,16 @@ namespace HomestayBookingAPI.Services.PaymentServices
                 PaymentId = payment.Id,
                 PaymentUrl = paymentUrl,
                 QrCodeUrl = paymentUrl,
+                // Không trả về QrCodeBase64, vì sẽ tạo ở frontend
                 ExpireDate = DateTime.Now.AddMinutes(15)
             };
         }
 
         public async Task<PaymentResponse> ProcessPaymentCallbackAsync(Dictionary<string, string> vnpayData)
         {
+            _logger.LogInformation("VNPay Callback Processing Started");
+            _logger.LogInformation("Received VNPay Data: {@vnpayData}", vnpayData);
+
             // Xác thực dữ liệu callback từ VNPay
             if (!vnpayData.TryGetValue("vnp_TxnRef", out var txnRef) ||
                 !vnpayData.TryGetValue("vnp_ResponseCode", out var responseCode) ||
@@ -145,9 +180,16 @@ namespace HomestayBookingAPI.Services.PaymentServices
                 _logger.LogWarning("Invalid VNPay secure hash");
                 throw new Exception("Invalid signature from VNPay");
             }
+            _logger.LogInformation($"Transaction Reference: {txnRef}");
+            _logger.LogInformation($"Response Code: {responseCode}");
+            _logger.LogInformation($"Transaction Status: {transactionStatus}");
+            _logger.LogInformation($"Secure Hash Validation: {isValidSignature}");
 
             // Process payment result
-            bool isSuccess = responseCode == "00" && transactionStatus == "00";
+            bool isSuccess = (responseCode == "00" || responseCode == "0") &&
+                     (transactionStatus == "00" || transactionStatus == "0");
+
+            _logger.LogInformation($"Payment Considered Successful: {isSuccess}");
             string paymentStatus = isSuccess ? "Success" : "Failed";
 
             // Update payment record
@@ -175,11 +217,11 @@ namespace HomestayBookingAPI.Services.PaymentServices
                     // Thay bằng service thông báo của bạn
                     if (isSuccess)
                     {
-                        //await _notifyService.CreatePaymentSuccessNotificationAsync(payment.Booking);
+                        await _notifyService.CreatePaymentSuccessNotificationAsync(payment.Booking);
                     }
                     else
                     {
-                        //await _notifyService.CreatePaymentFailureNotificationAsync(payment.Booking);
+                        await _notifyService.CreatePaymentFailureNotificationAsync(payment.Booking);
                     }
                 }
                 catch (Exception ex)

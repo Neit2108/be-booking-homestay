@@ -14,9 +14,9 @@ namespace HomestayBookingAPI.Models
         public double Amount { get; set; }
         public string PaymentMethod { get; set; } = "VNPAY";
         public string Status { get; set; } = "Pending";
-        public string TransactionId { get; set; }
-        public string PaymentUrl { get; set; }
-        public string QrCodeUrl { get; set; }
+        public string? TransactionId { get; set; }
+        public string? PaymentUrl { get; set; }
+        public string? QrCodeUrl { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? PaymentDate { get; set; }
         [ForeignKey("UserId")]
