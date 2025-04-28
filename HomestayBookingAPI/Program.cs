@@ -41,6 +41,9 @@ var apiSecret = cloudinaryConfig["ApiSecret"];
 var account = new Account(cloudName, apiKey, apiSecret);
 var cloudinary = new Cloudinary(account);
 
+//var connString = builder.Environment.IsDevelopment()
+//    ? builder.Configuration.GetConnectionString("DefaultConnection")
+//    : Environment.GetEnvironmentVariable("DATABASE_URL") ?? "Server=postgres-db;Port=5432;Database=HomestayBooking;User Id=postgres;Password=23102001;";
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -184,5 +187,5 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapControllers();
-
+//var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 app.Run();

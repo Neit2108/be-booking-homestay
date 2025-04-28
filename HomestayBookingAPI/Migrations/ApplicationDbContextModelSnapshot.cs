@@ -170,7 +170,7 @@ namespace HomestayBookingAPI.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Bookings");
+                    b.ToTable("Bookings", (string)null);
                 });
 
             modelBuilder.Entity("HomestayBookingAPI.Models.Comment", b =>
@@ -208,7 +208,7 @@ namespace HomestayBookingAPI.Migrations
 
                     b.HasIndex("SenderId");
 
-                    b.ToTable("Comments");
+                    b.ToTable("Comments", (string)null);
                 });
 
             modelBuilder.Entity("HomestayBookingAPI.Models.CommentImage", b =>
@@ -231,7 +231,7 @@ namespace HomestayBookingAPI.Migrations
 
                     b.HasIndex("CommentId");
 
-                    b.ToTable("CommentImages");
+                    b.ToTable("CommentImages", (string)null);
                 });
 
             modelBuilder.Entity("HomestayBookingAPI.Models.Contact", b =>
@@ -269,7 +269,7 @@ namespace HomestayBookingAPI.Migrations
 
                     b.HasIndex("SenderId");
 
-                    b.ToTable("Contacts");
+                    b.ToTable("Contacts", (string)null);
                 });
 
             modelBuilder.Entity("HomestayBookingAPI.Models.Favourite", b =>
@@ -290,7 +290,7 @@ namespace HomestayBookingAPI.Migrations
 
                     b.HasIndex("PlaceId");
 
-                    b.ToTable("Favourites");
+                    b.ToTable("Favourites", (string)null);
                 });
 
             modelBuilder.Entity("HomestayBookingAPI.Models.Notification", b =>
@@ -351,7 +351,7 @@ namespace HomestayBookingAPI.Migrations
 
                     b.HasIndex("SenderId");
 
-                    b.ToTable("Notifications");
+                    b.ToTable("Notifications", (string)null);
                 });
 
             modelBuilder.Entity("HomestayBookingAPI.Models.Payment", b =>
@@ -401,7 +401,7 @@ namespace HomestayBookingAPI.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Payments");
+                    b.ToTable("Payments", (string)null);
                 });
 
             modelBuilder.Entity("HomestayBookingAPI.Models.Place", b =>
@@ -455,7 +455,7 @@ namespace HomestayBookingAPI.Migrations
 
                     b.HasIndex("OwnerId");
 
-                    b.ToTable("Places");
+                    b.ToTable("Places", (string)null);
                 });
 
             modelBuilder.Entity("HomestayBookingAPI.Models.PlaceAvailable", b =>
@@ -479,7 +479,7 @@ namespace HomestayBookingAPI.Migrations
 
                     b.HasIndex("PlaceId");
 
-                    b.ToTable("PlaceAvailables");
+                    b.ToTable("PlaceAvailables", (string)null);
                 });
 
             modelBuilder.Entity("HomestayBookingAPI.Models.PlaceImage", b =>
@@ -502,7 +502,7 @@ namespace HomestayBookingAPI.Migrations
 
                     b.HasIndex("PlaceId");
 
-                    b.ToTable("PlaceImages");
+                    b.ToTable("PlaceImages", (string)null);
                 });
 
             modelBuilder.Entity("HomestayBookingAPI.Models.TestCaseModel", b =>
@@ -550,7 +550,7 @@ namespace HomestayBookingAPI.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("TestCases");
+                    b.ToTable("TestCases", (string)null);
                 });
 
             modelBuilder.Entity("HomestayBookingAPI.Models.TopRatePlaces", b =>
@@ -583,7 +583,7 @@ namespace HomestayBookingAPI.Migrations
 
                     b.HasIndex("PlaceId");
 
-                    b.ToTable("TopRatePlaces");
+                    b.ToTable("TopRatePlaces", (string)null);
                 });
 
             modelBuilder.Entity("HomestayBookingAPI.Models.Voucher", b =>
@@ -623,7 +623,7 @@ namespace HomestayBookingAPI.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
-                    b.ToTable("Vouchers");
+                    b.ToTable("Vouchers", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>

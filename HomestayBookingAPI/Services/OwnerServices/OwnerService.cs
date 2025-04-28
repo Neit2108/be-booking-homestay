@@ -44,8 +44,13 @@ namespace HomestayBookingAPI.Services.OwnerServices
                 var result = await _userManager.CreateAsync(user, ownerForm.Password);
                 if (!result.Succeeded)
                 {
-                    _logger.LogError("Lỗi tạo tk: {Errors}", string.Join(", ", result.Errors));
-                    throw new Exception($"Lỗi tạo tk: {string.Join(", ", result.Errors)}");
+                    _logger.LogError("Lỗi tạo tk huhu: {Errors}", string.Join(", ", result.Errors));
+                    int i = 0;
+                    foreach(var erro in result.Errors)
+                    {
+                        _logger.LogError(++i + " : " + erro.Description);
+                    }
+                    throw new Exception($"Lỗi tạo tk hihi: {string.Join(", ", result.Errors)}");
                 }
 
                 var roleResult = await _userManager.AddToRoleAsync(user, "Landlord");

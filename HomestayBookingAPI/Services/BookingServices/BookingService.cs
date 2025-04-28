@@ -213,6 +213,7 @@ namespace HomestayBookingAPI.Services.BookingServices
                 NumberOfGuests = booking.NumberOfGuests,
                 TotalPrice = booking.TotalPrice,
                 Status = booking.Status,
+                PaymentStatus = booking.PaymentStatus
             };
         }
 
@@ -296,6 +297,7 @@ namespace HomestayBookingAPI.Services.BookingServices
                     NumberOfGuests = b.NumberOfGuests,
                     TotalPrice = b.TotalPrice,
                     Status = b.Status,
+                    PaymentStatus = b.PaymentStatus,
                     ImageUrl = b.Place.Images != null && b.Place.Images.Any() ? b.Place.Images.FirstOrDefault().ImageUrl : null
                 })
                 .ToListAsync();
@@ -320,7 +322,8 @@ namespace HomestayBookingAPI.Services.BookingServices
                     EndDate = b.EndDate,
                     NumberOfGuests = b.NumberOfGuests,
                     TotalPrice = b.TotalPrice,
-                    Status = b.Status
+                    Status = b.Status,
+                    PaymentStatus = b.PaymentStatus,
                 })
                 .FirstOrDefaultAsync();
             if (booking == null)
@@ -350,6 +353,7 @@ namespace HomestayBookingAPI.Services.BookingServices
                     NumberOfGuests = b.NumberOfGuests,
                     TotalPrice = b.TotalPrice,
                     Status = b.Status,
+                    PaymentStatus = b.PaymentStatus,
                     ImageUrl = place.Images != null && place.Images.Any() ? place.Images.FirstOrDefault().ImageUrl : null
                 })
                 .ToListAsync();
@@ -384,6 +388,7 @@ namespace HomestayBookingAPI.Services.BookingServices
                                 NumberOfGuests = x.Booking.NumberOfGuests,
                                 TotalPrice = x.Booking.TotalPrice,
                                 Status = x.Booking.Status,
+                                PaymentStatus = x.Booking.PaymentStatus,
                                 ImageUrl = p != null && p.Images != null && p.Images.Any()
                                     ? p.Images.FirstOrDefault().ImageUrl
                                     : null 
