@@ -1,11 +1,15 @@
 # Stage 1: Build
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
-WORKDIR /src
-COPY ["HomestayBookingAPI/HomestayBookingAPI.csproj", "./"]
-RUN dotnet restore "HomestayBookingAPI.csproj"
-COPY . .
-WORKDIR "/src"
-RUN dotnet build "HomestayBookingAPI.csproj" -c Release -o /app/build
+WORKDIR /app
+
+# Copy everything
+COPY . ./
+
+# Restore dependencies
+RUN dotnet restore
+
+# Build the project
+RUN dotnet build "HomestayBookingAPI/HomestayBookingAPI.csproj" -c Release -o /app/build
 
 # Stage 2: Publish
 FROM build AS publish
