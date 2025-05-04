@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HomestayBookingAPI.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250428025948_Init")]
-    partial class Init
+    [Migration("20250504162002_InitInRenderDatabase")]
+    partial class InitInRenderDatabase
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

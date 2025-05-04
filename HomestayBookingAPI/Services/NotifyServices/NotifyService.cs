@@ -67,9 +67,6 @@ namespace HomestayBookingAPI.Services.NotifyServices
                 Status = NotificationStatus.Pending,
             };
 
-            //_context.Notifications.AddRange(customerNotify, lanlordNotify);
-            //await _context.SaveChangesAsync();
-
             try
             {
                 var customerEmail = TemplateMail.BookingConfirmationForCustomer(booking, customerNotify.Url);
@@ -140,7 +137,6 @@ namespace HomestayBookingAPI.Services.NotifyServices
             await _context.SaveChangesAsync();
         }
 
-        // Services/NotifyServices/NotifyService.cs
         public async Task CreatePaymentSuccessNotificationAsync(Booking booking)
         {
             // Lấy thông tin người dùng và homestay

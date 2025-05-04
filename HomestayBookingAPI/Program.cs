@@ -1,154 +1,24 @@
-﻿using CloudinaryDotNet;
-using Hangfire;
-using Hangfire.PostgreSql;
-using HomestayBookingAPI.Data;
-using HomestayBookingAPI.Models;
-using HomestayBookingAPI.Services.AuthService;
-using HomestayBookingAPI.Services.BookingServices;
-using HomestayBookingAPI.Services.CommentServices;
-using HomestayBookingAPI.Services.ContactServices;
-using HomestayBookingAPI.Services.EmailServices;
-using HomestayBookingAPI.Services.ImageServices;
-using HomestayBookingAPI.Services.JwtServices;
-using HomestayBookingAPI.Services.NotifyServices;
-using HomestayBookingAPI.Services.OwnerServices;
-using HomestayBookingAPI.Services.PaymentServices;
-using HomestayBookingAPI.Services.PlaceServices;
-using HomestayBookingAPI.Services.ProfileServices;
-using HomestayBookingAPI.Services.StatisticsServices;
-using HomestayBookingAPI.Services.TestCaseServices;
-using HomestayBookingAPI.Services.TopRatePlaceServices;
-using HomestayBookingAPI.Services.UserServices;
-using HomestayBookingAPI.Services.VoucherServices;
+﻿using HomestayBookingAPI.Configuration;
+using HomestayBookingAPI.Extensions;
 using HomestayBookingAPI.Utils;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.FileProviders;
-using Microsoft.IdentityModel.Tokens;
-using System.Security.Claims;
-using System.Text;
-using System.Text.Json.Serialization;
+using HomestayBookingAPI.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var cloudinaryConfig = builder.Configuration.GetSection("Cloudinary");
-var cloudName = cloudinaryConfig["CloudName"];
-var apiKey = cloudinaryConfig["ApiKey"];
-var apiSecret = cloudinaryConfig["ApiSecret"];
-
-var account = new Account(cloudName, apiKey, apiSecret);
-var cloudinary = new Cloudinary(account);
-
-//var connString = builder.Environment.IsDevelopment()
-//    ? builder.Configuration.GetConnectionString("DefaultConnection")
-//    : Environment.GetEnvironmentVariable("DATABASE_URL") ?? "Server=postgres-db;Port=5432;Database=HomestayBooking;User Id=postgres;Password=23102001;";
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
-    .AddEntityFrameworkStores<ApplicationDbContext>()
-    .AddDefaultTokenProviders();
-
-builder.Services.AddCors(option =>
-{
-    option.AddPolicy("AllowAll",
-        builder =>
-        {
-            builder.AllowAnyOrigin()
-                   .AllowAnyMethod()
-                   .AllowAnyHeader();
-        });
-});
-
-builder.Services.AddHangfire(config => config
-    .SetDataCompatibilityLevel(CompatibilityLevel.Version_170)
-    .UseSimpleAssemblyNameTypeSerializer()
-    .UseRecommendedSerializerSettings()
-    .UsePostgreSqlStorage(options =>
-    {
-        options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"));
-    }));
-builder.Services.AddHangfireServer(options =>
-{
-    options.WorkerCount = 1;
-});
-GlobalJobFilters.Filters.Add(new AutomaticRetryAttribute { Attempts = 3 }); // gửi lại 3 lần nếu thất bại
-
-var configuration = builder.Configuration;
-
-var secretKey = Encoding.UTF8.GetBytes(configuration["JwtSettings:Secret"]);
-
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer( options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidIssuer = configuration["JwtSettings:Issuer"],
-
-            ValidateAudience = true,
-            ValidAudience = configuration["JwtSettings:Audience"],
-
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(secretKey),
-
-            ValidateLifetime = true,
-
-            RoleClaimType = ClaimTypes.Role
-        };
-    });
-
-builder.Services.AddAuthorization();
-builder.Services.AddHttpClient();
-
-builder.Services.Configure<VNPayConfig>(builder.Configuration.GetSection("VNPay"));
-
-// Thêm service
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IImageService, ImageService>();
-builder.Services.AddScoped<IProfileService, ProfileService>();
-builder.Services.AddScoped<IPlaceService, PlaceService>();
-builder.Services.AddScoped<ITopRateService, TopRateService>();
-builder.Services.AddScoped<IBookingService, BookingService>();
-builder.Services.AddScoped<IOwnerService, OwnerService>();
-builder.Services.AddScoped<IVoucherService, VoucherService>();
-builder.Services.AddScoped<INotifyService, NotifyService>();
-builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddScoped<IJwtService, JwtService>();
-builder.Services.AddScoped<ITestCaseService, TestCaseService>();
-builder.Services.AddScoped<IStatisticsService, StatisticsService>();
-builder.Services.AddScoped<ICommentService, CommentService>();
-builder.Services.AddScoped<IContactService, ContactService>();
-builder.Services.AddScoped<IVNPayService, VNPayService>();
-builder.Services.AddScoped<HttpClient>();
-builder.Services.AddSingleton(cloudinary);
-builder.Services.AddLogging(logging =>
-{
-    logging.ClearProviders(); 
-    logging.AddConsole(); 
-    logging.AddDebug();   
-});
-builder.Services.Configure<FormOptions>(options =>
-{
-    options.MultipartBodyLengthLimit = 10 * 1024 * 1024; // 10MB
-});
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-    });
-builder.Services.AddOpenApi();
+builder.Services.AddApplicationSettings(builder.Configuration);
+builder.Services.AddDatabaseConfiguration(builder.Configuration);
+builder.Services.AddAuthenticationConfiguration(builder.Configuration);
+builder.Services.AddCloudinaryConfiguration(builder.Configuration);
+builder.Services.AddHangfireConfiguration(builder.Configuration);
+builder.Services.AddCorsConfiguration();
+builder.Services.AddApplicationServices();
+builder.Services.AddControllers();
+builder.Services.AddSwaggerConfiguration();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
+app.ConfigureApp(app.Environment);
 
 using (var scope = app.Services.CreateScope())
 {
@@ -156,36 +26,8 @@ using (var scope = app.Services.CreateScope())
     var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
     var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
     await SeedRole.InitializeRolesAndAdmin(roleManager, userManager);
-} // tạo role và admin mặc định
-
-app.UseStaticFiles();
-app.UseCors("AllowAll");
-
-app.UseHttpsRedirection();
-
-app.UseAuthentication();
-app.UseAuthorization();
-
-
-//app.UseHangfireDashboard("/hangfire", new DashboardOptions
-//{
-//    Authorization = new[] { new AuthorizationFilter() }, 
-//});
-app.UseHangfireDashboard("/hangfire");
-using (var scope = app.Services.CreateScope())
-{
-    var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
-    recurringJobManager.AddOrUpdate(
-        "update-notification-status",
-        () => scope.ServiceProvider.GetRequiredService<INotifyService>().UpdateNotificationStatusAsync(),
-        "*/5 * * * *");
-
-    recurringJobManager.AddOrUpdate(
-        "update-top-rated-places",
-        () => scope.ServiceProvider.GetRequiredService<ITopRateService>().UpdateTopRateAsync(5),
-        "*/5 * * * *");
 }
 
-app.MapControllers();
-//var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+app.ConfigureHangfireJobs();
+
 app.Run();

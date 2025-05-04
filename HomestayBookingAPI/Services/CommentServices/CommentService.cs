@@ -80,6 +80,10 @@ namespace HomestayBookingAPI.Services.CommentServices
 
                 await UpdateRatingAsync(commentRequest.PlaceId);
 
+                comment = await _context.Comments
+                    .Include(c => c.Sender)
+                    .FirstOrDefaultAsync(c => c.Id == comment.Id);
+
                 return new CommentResponse
                 {
                     Id = comment.Id,

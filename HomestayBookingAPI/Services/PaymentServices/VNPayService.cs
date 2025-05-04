@@ -56,9 +56,6 @@ namespace HomestayBookingAPI.Services.PaymentServices
             }
         }
 
-        // Suggested modifications to HomestayBookingAPI/Services/PaymentServices/VNPayService.cs
-        // Focus on the CreatePaymentUrlAsync method
-
         public async Task<VNPayCreateResponse> CreatePaymentUrlAsync(VNPayCreateRequest request, string ipAddress)
         {
             var booking = await _context.Bookings
@@ -222,7 +219,6 @@ namespace HomestayBookingAPI.Services.PaymentServices
             // Validate secure hash
             var vnpay = new VnPayLibrary();
 
-            // Copy all response data except secure hash to a new dictionary for validation
             foreach (var kvp in vnpayData.Where(x => x.Key != "vnp_SecureHash" && x.Key != "vnp_SecureHashType"))
             {
                 vnpay.AddResponseData(kvp.Key, kvp.Value);
@@ -257,7 +253,6 @@ namespace HomestayBookingAPI.Services.PaymentServices
             {
                 payment.PaymentDate = DateTime.UtcNow;
 
-                // Update booking payment status
                 if (payment.Booking != null)
                 {
                     payment.Booking.PaymentStatus = PaymentStatus.Paid;
@@ -266,25 +261,13 @@ namespace HomestayBookingAPI.Services.PaymentServices
 
             await _context.SaveChangesAsync();
 
-            // Send notification
-            if (payment.Booking != null)
+            if (isSuccess)
             {
-                try
-                {
-                    // Thay bằng service thông báo của bạn
-                    if (isSuccess)
-                    {
-                        await _notifyService.CreatePaymentSuccessNotificationAsync(payment.Booking);
-                    }
-                    else
-                    {
-                        await _notifyService.CreatePaymentFailureNotificationAsync(payment.Booking);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error sending payment notification");
-                }
+                await _notifyService.CreatePaymentSuccessNotificationAsync(payment.Booking);
+            }
+            else
+            {
+                await _notifyService.CreatePaymentFailureNotificationAsync(payment.Booking);
             }
 
             return new PaymentResponse
