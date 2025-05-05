@@ -39,7 +39,13 @@ COPY --from=publish /app/publish/appsettings.template.json ./appsettings.templat
 
 # Tạo script khởi động
 RUN echo '#!/bin/bash \n\
+echo "Checking environment variables..." \n\
+echo "JWT_SECRET is set: $(if [ -n \"\$JWT_SECRET\" ]; then echo \"YES\"; else echo \"NO\"; fi)" \n\
+echo "Generating configuration file from template..." \n\
 envsubst < appsettings.template.json > appsettings.Development.json \n\
+echo "Generated appsettings.Development.json structure:" \n\
+grep -v "Secret\|Password\|ConnectionString" appsettings.Development.json | head -20 \n\
+echo "Starting application..." \n\
 exec dotnet HomestayBookingAPI.dll \n\
 ' > /app/start.sh \
 && chmod +x /app/start.sh
