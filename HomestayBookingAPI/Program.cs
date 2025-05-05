@@ -5,6 +5,10 @@ using Microsoft.AspNetCore.Identity;
 using HomestayBookingAPI.Models;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration
+    .AddJsonFile("appsettings.json", optional: false)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true)
+    .AddEnvironmentVariables(prefix: "");
 
 builder.Services.AddApplicationSettings(builder.Configuration);
 builder.Services.AddDatabaseConfiguration(builder.Configuration);
