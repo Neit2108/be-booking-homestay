@@ -11,6 +11,7 @@ using HomestayBookingAPI.Services.OwnerServices;
 using HomestayBookingAPI.Services.PaymentServices;
 using HomestayBookingAPI.Services.PlaceServices;
 using HomestayBookingAPI.Services.ProfileServices;
+using HomestayBookingAPI.Services.PromotionServices;
 using HomestayBookingAPI.Services.StatisticsServices;
 using HomestayBookingAPI.Services.TestCaseServices;
 using HomestayBookingAPI.Services.TopRatePlaceServices;
@@ -44,6 +45,7 @@ namespace HomestayBookingAPI.Configuration
             services.AddScoped<IContactService, ContactService>();
             services.AddScoped<IVNPayService, VNPayService>();
             services.AddScoped<IBookingLifecycleService, BookingLifecycleService>();
+            services.AddScoped<IPromotionService, PromotionService>();
             services.AddScoped<HttpClient>();
 
             services.AddLogging(logging =>

@@ -61,6 +61,25 @@ namespace HomestayBookingAPI.Services.VoucherServices
 
         }
 
+        public async Task<Voucher> CreateVoucherDefaultAsync(VoucherRequestForCreate voucherRequestForCreate)
+        {
+            var voucher = new Voucher
+            {
+                Name = voucherRequestForCreate.Name,
+                Code = voucherRequestForCreate.Code,
+                UsageCount = voucherRequestForCreate.UsageCount,
+                Discount = voucherRequestForCreate.Discount,
+                MaxUsage = voucherRequestForCreate.MaxUsage,
+                From = voucherRequestForCreate.From,
+                To = voucherRequestForCreate.To,
+            };
+
+            await _context.AddAsync(voucher);
+
+            return voucher;
+
+        }
+
         public async Task<Voucher> GetVoucherByCode(string voucher)
         {
             if (string.IsNullOrEmpty(voucher))

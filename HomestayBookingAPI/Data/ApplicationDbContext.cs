@@ -20,6 +20,7 @@ namespace HomestayBookingAPI.Data
         public DbSet<CommentImage> CommentImages { get; set; }
         public DbSet<Contact> Contacts { get; set; } 
         public DbSet<Payment> Payments { get; set; }
+        public DbSet<Promotion> Promotions { get; set; }
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)

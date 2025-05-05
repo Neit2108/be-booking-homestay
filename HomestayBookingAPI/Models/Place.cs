@@ -53,5 +53,6 @@ namespace HomestayBookingAPI.Models
 
         public List<PlaceImage> Images { get; set; } = new List<PlaceImage>(); // 1 - n với PlaceImage
         public List<Favourite> Favourites { get; set; } = new List<Favourite>(); // 1 - n với Favourite
+        public ICollection<Promotion>? Promotions { get; set; } // n-n với Promotion
     }
 }

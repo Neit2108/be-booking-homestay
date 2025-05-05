@@ -8,5 +8,6 @@ namespace HomestayBookingAPI.Services.VoucherServices
         Task<VoucherResponse> CheckVoucherAvailable(string voucher);
         Task<Voucher> GetVoucherByCode(string voucher);
         Task<double> ApplyVoucherAsync(string clientVoucher, double price);
+        Task<Voucher> CreateVoucherDefaultAsync(VoucherRequestForCreate voucherRequestForCreate);
     }
 }

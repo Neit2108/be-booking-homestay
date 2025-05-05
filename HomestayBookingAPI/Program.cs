@@ -3,6 +3,8 @@ using HomestayBookingAPI.Extensions;
 using HomestayBookingAPI.Utils;
 using Microsoft.AspNetCore.Identity;
 using HomestayBookingAPI.Models;
+using HomestayBookingAPI.Data;
+using HomestayBookingAPI.Services.VoucherServices;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration
@@ -30,6 +32,10 @@ using (var scope = app.Services.CreateScope())
     var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
     var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
     await SeedRole.InitializeRolesAndAdmin(roleManager, userManager);
+
+    var context = services.GetRequiredService<ApplicationDbContext>();
+    var voucherService = services.GetRequiredService<IVoucherService>();
+    await InitPromotion.InitPromotionAsync(context, voucherService);
 }
 
 app.ConfigureHangfireJobs();

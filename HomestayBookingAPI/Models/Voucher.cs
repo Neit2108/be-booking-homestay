@@ -32,6 +32,5 @@ namespace HomestayBookingAPI.Models
         [Required]
         public DateTime To { get; set; }
 
-
     }
 }
