@@ -11,7 +11,7 @@ namespace HomestayBookingAPI.Configuration
     {
         public static IServiceCollection AddAuthenticationConfiguration(this IServiceCollection services, IConfiguration configuration)
         {
-            var secretKey = Encoding.UTF8.GetBytes(configuration["JwtSettings:Secret"]);
+            var secretKey = Encoding.UTF8.GetBytes(configuration["JwtSettings:Secret"] ?? "446f32c6c44a34e89737d19529acb82738453afe7502e7d89ef2a99bc31a6589");
 
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
