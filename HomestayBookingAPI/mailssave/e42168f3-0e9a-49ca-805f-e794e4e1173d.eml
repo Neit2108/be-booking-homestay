@@ -1,0 +1,44 @@
+From: HomiesStay <ldungtien.210804@gmail.com>
+Date: Tue, 06 May 2025 08:27:34 +0700
+Subject: =?utf-8?b?WcOqdSBj4bqndSDEkeG6t3QgcGjDsm5n?=
+Message-Id: <5GGKLN543QU4.PBA5EDYT8S8O1@desktop-6egfl6f>
+To: system
+MIME-Version: 1.0
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+
+                    <html>
+                    <head>
+                        <style>
+                            body { font-family: 'Segoe UI', sans-serif; background-color: #f9f9f9; color: #333; }
+                            .container { max-width: 600px; margin: auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+                            h2 { color: #2196F3; }
+                            .row { margin-bottom: 10px; }
+                            .label { font-weight: bold; }
+                            .btn {
+                                display: inline-block;
+                                padding: 10px 20px;
+                                background-color: #4CAF50;
+                                color: white;
+                                text-decoration: none;
+                                border-radius: 4px;
+                                margin-top: 15px;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <h2>Thông báo đặt chỗ mới</h2>
+                            <p>Có một khách hàng đã đặt chỗ tại <strong>Homestay Trăng Thắm</strong>.</p>
+                            <div class="row"><span class="label">Khách hàng:</span> customer</div>
+                            <div class="row"><span class="label">Ngày nhận phòng:</span> 20/05/2025</div>
+                            <div class="row"><span class="label">Ngày trả phòng:</span> 22/05/2025</div>
+                            <div class="row"><span class="label">Số khách:</span> 1</div>
+                            <div class="row"><span class="label">Tổng tiền:</span> 3,207,672 VND</div>
+                            <div class="row"><span class="label">Trạng thái:</span> Pending</div>
+
+                            <a href="http://localhost:5173/auth/verify-action/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6InN5c3RlbSIsImFjdCI6IkJvb2tpbmdSZXF1ZXN0IiwicmVmIjoiNiIsImh0dHA6Ly9zY2hlbWFzLm1pY3Jvc29mdC5jb20vd3MvMjAwOC8wNi9pZGVudGl0eS9jbGFpbXMvcm9sZSI6IkxhbmRsb3JkIiwiZXhwIjoxNzQ2NDk4NDQzLCJpc3MiOiJodHRwczovL2xvY2FsaG9zdDo3Mjg0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDo1MTczIn0.S3-CTzRvP3U-3LchYK-uPpsWMlNOYyegBG44Ep5xv2I" class="btn">Xem & Duyệt Booking</a>
+                        </div>
+                    </body>
+                    </html>

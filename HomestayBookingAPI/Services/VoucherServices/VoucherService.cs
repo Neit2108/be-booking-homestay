@@ -16,7 +16,8 @@ namespace HomestayBookingAPI.Services.VoucherServices
 
         public async Task<double> ApplyVoucherAsync(string clientVoucher, double price)
         {
-            var voucher = await _context.Vouchers.FirstOrDefaultAsync(v => v.Code == clientVoucher);
+
+            var voucher = await _context.Vouchers.FirstOrDefaultAsync(v => v.Code.ToUpper() == clientVoucher.ToUpper());
             if (voucher == null)
             {
                 return price;

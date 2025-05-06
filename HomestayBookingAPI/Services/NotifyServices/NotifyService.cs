@@ -73,11 +73,13 @@ namespace HomestayBookingAPI.Services.NotifyServices
                 var landlordEmail = TemplateMail.BookingRequestForLanlord(booking, lanlordNotify.Url);
 
                 //await _emailService.SendEmailAsync(customer.Email, "Xác nhận thông tin đặt phòng", customerEmail);
+                _logger.LogInformation("Bắt đầu gửi dưới nền");
                 var customerJobId = _backgroundJobClient.Enqueue(() => _emailService.SendEmailAsync(customer.Email, "Xác nhận thông tin đặt phòng", customerEmail));
                 customerNotify.JobId = customerJobId;
                 //await _emailService.SendEmailAsync(landlord.Email, "Yêu cầu đặt phòng", landlordEmail);
                 var landlordJobId = _backgroundJobClient.Enqueue(() => _emailService.SendEmailAsync(landlord.Email, "Yêu cầu đặt phòng", landlordEmail));
                 lanlordNotify.JobId = landlordJobId;
+                _logger.LogInformation("Kết thúc gửi dưới nền");
             }
             catch (Exception ex)
             {

@@ -58,7 +58,13 @@ namespace HomestayBookingAPI.Services.BookingServices
             if ((!string.IsNullOrEmpty(bookingRequest.Voucher)) && (await _voucherService.CheckVoucherAvailable(bookingRequest.Voucher) != null))
             {
                 totalPrice = await _voucherService.ApplyVoucherAsync(bookingRequest.Voucher, totalPrice);
+                _logger.LogDebug("Voucher được dùng : " + bookingRequest.Voucher);
             }
+            _logger.LogDebug("***************" +
+                "                   " +
+                "                   " +
+                "                    " +
+                "*********************\n");
             _logger.LogDebug($"Total price (after): {totalPrice}");
             return totalPrice;
 
@@ -148,6 +154,7 @@ namespace HomestayBookingAPI.Services.BookingServices
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
+
 
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
