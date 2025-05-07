@@ -6,7 +6,7 @@
         BookingRequest, // yêu cầu đặt chỗ
         BookingConfirmation, // xác nhận đặt chỗ
         BookingCancellation, // hủy đặt chỗ
-        PaymentSuccess,
+        PaymentSuccess, // thanh toán thành công
         PaymentFailure,
         ReviewReceived,
         ReviewResponse,

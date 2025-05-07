@@ -166,7 +166,7 @@ namespace HomestayBookingAPI.Services.NotifyServices
                 Type = NotificationType.PaymentSuccess,
                 Title = "Thanh toán thành công",
                 Message = $"Thanh toán đặt phòng tại {place.Name} từ {booking.StartDate.ToShortDateString()} đến {booking.EndDate.ToShortDateString()} đã thành công. Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi.",
-                Url = $"{_baseUrl}/bookings/{booking.Id}",
+                Url = $"{_baseUrl}/auth/verify-action/{customerToken}",
                 Status = NotificationStatus.Pending,
                 CreatedAt = DateTime.UtcNow,
                 IsRead = false
@@ -189,7 +189,7 @@ namespace HomestayBookingAPI.Services.NotifyServices
                 Type = NotificationType.PaymentSuccess,
                 Title = "Thanh toán đặt phòng thành công",
                 Message = $"Khách hàng {customer.FullName} đã thanh toán thành công cho đặt phòng tại {place.Name} từ {booking.StartDate.ToShortDateString()} đến {booking.EndDate.ToShortDateString()}.",
-                Url = $"{_baseUrl}/landlord/bookings/{booking.Id}",
+                Url = $"{_baseUrl}/auth/verify-action/{landlordToken}",
                 Status = NotificationStatus.Pending,
                 CreatedAt = DateTime.UtcNow,
                 IsRead = false
@@ -198,9 +198,13 @@ namespace HomestayBookingAPI.Services.NotifyServices
             try
             {
                 // Tạo email cho khách hàng
+                _logger.LogInformation("Creating email for customer {CustomerId} for booking {BookingId}", customer.Id, booking.Id);
+                _logger.LogInformation("Url: {Url}", customerNotify.Url);
                 var customerEmailTemplate = TemplateMail.PaymentSuccessEmail(booking, customerNotify.Url);
 
                 // Tạo email cho chủ nhà
+                _logger.LogInformation("Creating email for landlord {LandlordId} for booking {BookingId}", landlord.Id, booking.Id);
+                _logger.LogInformation("Url: {Url}", landlordNotify.Url);
                 var landlordEmailTemplate = TemplateMail.LandlordPaymentNotificationEmail(booking, landlordNotify.Url);
 
                 // Gửi email qua Hangfire

@@ -8,10 +8,12 @@ namespace HomestayBookingAPI.Services.VoucherServices
     public class VoucherService : IVoucherService
     {
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<VoucherService> _logger;
 
-        public VoucherService(ApplicationDbContext context)
+        public VoucherService(ApplicationDbContext context, ILogger<VoucherService> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         public async Task<double> ApplyVoucherAsync(string clientVoucher, double price)
@@ -41,6 +43,7 @@ namespace HomestayBookingAPI.Services.VoucherServices
             var checkedVoucher = await GetVoucherByCode(voucher);
             if (checkedVoucher == null)
             {
+                _logger.LogDebug("Không tìm thấy voucher");
                 return null;
             }
 

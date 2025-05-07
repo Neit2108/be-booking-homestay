@@ -268,10 +268,12 @@ namespace HomestayBookingAPI.Services.PaymentServices
 
             if (isSuccess)
             {
+                _logger.LogInformation("Payment successful, sending notification");
                 await _notifyService.CreatePaymentSuccessNotificationAsync(payment.Booking);
             }
             else
             {
+                _logger.LogWarning("Payment failed, sending notification");
                 await _notifyService.CreatePaymentFailureNotificationAsync(payment.Booking);
             }
 
