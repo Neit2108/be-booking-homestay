@@ -1,6 +1,7 @@
 ﻿using Hangfire.Server;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace HomestayBookingAPI.Models
 {
@@ -9,10 +10,12 @@ namespace HomestayBookingAPI.Models
         [Key]
         public int Id { get; set; }
 
+        [Required]
+        [Column(TypeName = "text")]
         public string Name { get; set; }
 
         [Required]
-        [StringLength(10)]
+        [StringLength(30)]
         public string Code { get; set; }
 
         [Required]

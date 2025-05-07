@@ -197,7 +197,6 @@ namespace HomestayBookingAPI.Services.NotifyServices
                 IsRead = false
             };
 
-            // Đầu tiên, thêm thông báo vào database
             _context.Notifications.AddRange(customerNotify, landlordNotify);
             await _context.SaveChangesAsync();
 

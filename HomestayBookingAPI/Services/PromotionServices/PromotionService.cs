@@ -97,7 +97,8 @@ namespace HomestayBookingAPI.Services.PromotionServices
                 VoucherCode = voucher.Code,
                 Discount = voucher.Discount,
                 Image = promotion.Image,
-                PromotionType = promotion.PromotionType
+                PromotionType = promotion.PromotionType,
+                IsActive = DateTime.Now <= promotion.EndDate
             };
         }
 
@@ -114,7 +115,8 @@ namespace HomestayBookingAPI.Services.PromotionServices
                 VoucherCode = p.Voucher.Code ?? "deo co",
                 Discount = p.Voucher.Discount,
                 Image = p.Image,
-                PromotionType = p.PromotionType
+                PromotionType = p.PromotionType,
+                IsActive = DateTime.Now <= p.EndDate
             });
         }
 
@@ -136,7 +138,8 @@ namespace HomestayBookingAPI.Services.PromotionServices
                 VoucherCode = promotion.Voucher.Code ?? "deo co",
                 Discount = promotion.Voucher.Discount,
                 Image = promotion.Image,
-                PromotionType = promotion.PromotionType
+                PromotionType = promotion.PromotionType,
+                IsActive = DateTime.Now <= promotion.EndDate
             };
         }
     }
