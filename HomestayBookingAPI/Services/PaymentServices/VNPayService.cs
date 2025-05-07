@@ -93,12 +93,17 @@ namespace HomestayBookingAPI.Services.PaymentServices
             await _context.Payments.AddAsync(payment);
             await _context.SaveChangesAsync();
 
+            var vietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+            var vietnamNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTimeZone);
+            var createDate = vietnamNow.ToString("yyyyMMddHHmmss");
+            var expireDate = vietnamNow.AddMinutes(15).ToString("yyyyMMddHHmmss");
+
             var vnpay = new VnPayLibrary();
             vnpay.AddRequestData("vnp_Version", "2.1.0");
             vnpay.AddRequestData("vnp_Command", "pay");
             vnpay.AddRequestData("vnp_TmnCode", _vnpayConfig.Value.TmnCode);
             vnpay.AddRequestData("vnp_Amount", ((long)(booking.TotalPrice * 100)).ToString()); // Nhân 100 vì VNPay tính tiền theo VND * 100
-            vnpay.AddRequestData("vnp_CreateDate", DateTime.Now.ToString("yyyyMMddHHmmss"));
+            vnpay.AddRequestData("vnp_CreateDate", createDate);
             vnpay.AddRequestData("vnp_CurrCode", "VND");
             vnpay.AddRequestData("vnp_IpAddr", ipAddress);
             vnpay.AddRequestData("vnp_Locale", request.Locale ?? "vn");
@@ -106,7 +111,7 @@ namespace HomestayBookingAPI.Services.PaymentServices
             vnpay.AddRequestData("vnp_OrderType", request.OrderType ?? "270001"); // Mã danh mục hàng hóa
             vnpay.AddRequestData("vnp_ReturnUrl", !string.IsNullOrEmpty(request.ReturnUrl) ? request.ReturnUrl : _vnpayConfig.Value.ReturnUrl);
             vnpay.AddRequestData("vnp_TxnRef", payment.Id.ToString()); // Sử dụng payment ID làm mã tham chiếu
-            vnpay.AddRequestData("vnp_ExpireDate", DateTime.Now.AddMinutes(15).ToString("yyyyMMddHHmmss")); // Thời gian hết hạn
+            vnpay.AddRequestData("vnp_ExpireDate", expireDate);
 
             // Thêm BankCode param nếu có
             if (!string.IsNullOrEmpty(request.BankCode))
