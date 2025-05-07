@@ -73,13 +73,11 @@ namespace HomestayBookingAPI.Services.NotifyServices
                 var landlordEmail = TemplateMail.BookingRequestForLanlord(booking, lanlordNotify.Url);
 
                 //await _emailService.SendEmailAsync(customer.Email, "Xác nhận thông tin đặt phòng", customerEmail);
-                _logger.LogInformation("Bắt đầu gửi dưới nền");
                 var customerJobId = _backgroundJobClient.Enqueue(() => _emailService.SendEmailAsync(customer.Email, "Xác nhận thông tin đặt phòng", customerEmail));
                 customerNotify.JobId = customerJobId;
                 //await _emailService.SendEmailAsync(landlord.Email, "Yêu cầu đặt phòng", landlordEmail);
                 var landlordJobId = _backgroundJobClient.Enqueue(() => _emailService.SendEmailAsync(landlord.Email, "Yêu cầu đặt phòng", landlordEmail));
                 lanlordNotify.JobId = landlordJobId;
-                _logger.LogInformation("Kết thúc gửi dưới nền");
             }
             catch (Exception ex)
             {
@@ -197,9 +195,6 @@ namespace HomestayBookingAPI.Services.NotifyServices
                 IsRead = false
             };
 
-            _context.Notifications.AddRange(customerNotify, landlordNotify);
-            await _context.SaveChangesAsync();
-
             try
             {
                 // Tạo email cho khách hàng
@@ -228,8 +223,6 @@ namespace HomestayBookingAPI.Services.NotifyServices
                 // Cập nhật jobId trong notification
                 customerNotify.JobId = customerJobId;
                 landlordNotify.JobId = landlordJobId;
-
-                await _context.SaveChangesAsync();
             }
             catch (Exception ex)
             {
@@ -239,13 +232,14 @@ namespace HomestayBookingAPI.Services.NotifyServices
                 customerNotify.Status = NotificationStatus.Failed;
                 landlordNotify.Status = NotificationStatus.Failed;
 
-                await _context.SaveChangesAsync();
             }
 
             // Cập nhật trạng thái booking
             booking.PaymentStatus = PaymentStatus.Paid;
             booking.UpdatedAt = DateTime.UtcNow;
             _context.Bookings.Update(booking);
+
+            await _context.Notifications.AddRangeAsync(customerNotify, landlordNotify);
 
             await _context.SaveChangesAsync();
 
@@ -305,8 +299,6 @@ namespace HomestayBookingAPI.Services.NotifyServices
                 Url = $"{_baseUrl}/auth/verify-action/{customerToken}",
                 Status = NotificationStatus.Pending,
             };
-
-            _context.Notifications.Add(customerNotify);
             try
             {
                 var customerEmail = TemplateMail.BookingStatusChangeEmail(booking, customerNotify.Url, isAccepted, rejectReason);
@@ -320,6 +312,7 @@ namespace HomestayBookingAPI.Services.NotifyServices
                 
                 _logger.LogError(ex, "Failed to send email to customer for booking status change");
             }
+            await _context.Notifications.AddAsync(customerNotify);
             await _context.SaveChangesAsync();
         }
 
