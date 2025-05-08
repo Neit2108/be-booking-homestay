@@ -198,8 +198,8 @@ namespace HomestayBookingAPI.Services.NotifyServices
             try
             {
                 // Tạo email cho khách hàng
-                _logger.LogInformation("Creating email for customer {CustomerId} for booking {BookingId}", customer.Id, booking.Id);
-                _logger.LogInformation("Url: {Url}", customerNotify.Url);
+                _logger.LogDebug("Creating email for customer {CustomerId} for booking {BookingId}", customer.Id, booking.Id);
+                _logger.LogDebug("Url: {Url}", customerNotify.Url);
                 var customerEmailTemplate = TemplateMail.PaymentSuccessEmail(booking, customerNotify.Url);
 
                 // Tạo email cho chủ nhà
@@ -247,7 +247,7 @@ namespace HomestayBookingAPI.Services.NotifyServices
 
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Payment success notification created for booking {BookingId}", booking.Id);
+            _logger.LogDebug("Payment success notification created for booking {BookingId}", booking.Id);
         }
 
         public async Task NotifyBookingStatusChangeAsync(int bookingId, bool isAccepted, string rejectReason = "Không xác định")

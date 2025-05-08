@@ -264,11 +264,12 @@ namespace HomestayBookingAPI.Services.PaymentServices
                 }
             }
 
+            
             await _context.SaveChangesAsync();
-
+            _logger.LogDebug("Chuẩn bị gửi mail nè");
             if (isSuccess)
             {
-                _logger.LogInformation("Payment successful, sending notification");
+                _logger.LogDebug("Payment successful, sending notification");
                 await _notifyService.CreatePaymentSuccessNotificationAsync(payment.Booking);
             }
             else
@@ -276,6 +277,7 @@ namespace HomestayBookingAPI.Services.PaymentServices
                 _logger.LogWarning("Payment failed, sending notification");
                 await _notifyService.CreatePaymentFailureNotificationAsync(payment.Booking);
             }
+            _logger.LogDebug("Gửi xong rồi");
 
             return new PaymentResponse
             {
