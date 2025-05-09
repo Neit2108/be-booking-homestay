@@ -17,6 +17,7 @@ using HomestayBookingAPI.Services.TestCaseServices;
 using HomestayBookingAPI.Services.TopRatePlaceServices;
 using HomestayBookingAPI.Services.UserServices;
 using HomestayBookingAPI.Services.VoucherServices;
+using HomestayBookingAPI.Services.WalletServices;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json.Serialization;
 
@@ -46,6 +47,7 @@ namespace HomestayBookingAPI.Configuration
             services.AddScoped<IVNPayService, VNPayService>();
             services.AddScoped<IBookingLifecycleService, BookingLifecycleService>();
             services.AddScoped<IPromotionService, PromotionService>();
+            services.AddScoped<IWalletService, WalletService>();
             services.AddScoped<HttpClient>();
 
             services.AddLogging(logging =>

@@ -9,5 +9,6 @@ namespace HomestayBookingAPI.Services.PaymentServices
         Task<PaymentResponse> GetPaymentByIdAsync(int paymentId);
         Task<IEnumerable<PaymentResponse>> GetPaymentsByBookingIdAsync(int bookingId);
         Task<IEnumerable<PaymentResponse>> GetPaymentsByUserIdAsync(string userId);
+        Task<VNPayCreateResponse> CreateGenericPaymentAsync(GenericPaymentRequest request, string userId, string ipAddress);
     }
 }

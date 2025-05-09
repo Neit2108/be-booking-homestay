@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
 using HomestayBookingAPI.Utils;
 using QRCoder;
+using HomestayBookingAPI.Services.WalletServices;
 
 namespace HomestayBookingAPI.Services.PaymentServices
 {
@@ -19,6 +20,7 @@ namespace HomestayBookingAPI.Services.PaymentServices
         private readonly INotifyService _notifyService;
         private readonly IBookingService _bookingService;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IWalletService _walletService;
 
         public VNPayService(
             ApplicationDbContext context,
@@ -26,7 +28,8 @@ namespace HomestayBookingAPI.Services.PaymentServices
             ILogger<VNPayService> logger,
             INotifyService notifyService,
             IBookingService bookingService,
-            IHttpClientFactory httpClientFactory)
+            IHttpClientFactory httpClientFactory,
+            IWalletService walletService)
         {
             _context = context;
             _vnpayConfig = vnpayConfig;
@@ -34,6 +37,7 @@ namespace HomestayBookingAPI.Services.PaymentServices
             _notifyService = notifyService;
             _bookingService = bookingService;
             _httpClientFactory = httpClientFactory;
+            _walletService = walletService;
         }
 
         private string GenerateQRCodeBase64(string url)
@@ -258,31 +262,38 @@ namespace HomestayBookingAPI.Services.PaymentServices
             {
                 payment.PaymentDate = DateTime.UtcNow;
 
-                if (payment.Booking != null)
+                // Xử lý theo mục đích thanh toán
+                if (payment.Purpose == PaymentPurpose.BookingPayment && payment.BookingId != null)
                 {
+                    // Cập nhật trạng thái booking
                     payment.Booking.PaymentStatus = PaymentStatus.Paid;
+
+                    // Gửi thông báo thanh toán thành công
+                    await _notifyService.CreatePaymentSuccessNotificationAsync(payment.Booking);
+                }
+                else if (payment.Purpose == PaymentPurpose.WalletDeposit)
+                {
+                    // Tìm ví của người dùng và nạp tiền
+                    await _walletService.AddTransactionAsync(
+                        payment.UserId,
+                        payment.Amount,
+                        TransactionType.Deposit,
+                        $"Nạp tiền qua VNPAY - Mã GD: {payment.TransactionId}",
+                        null,
+                        payment.Id
+                    );
+
+                    
                 }
             }
 
-            
+
             await _context.SaveChangesAsync();
-            _logger.LogDebug("Chuẩn bị gửi mail nè");
-            if (isSuccess)
-            {
-                _logger.LogDebug("Payment successful, sending notification");
-                await _notifyService.CreatePaymentSuccessNotificationAsync(payment.Booking);
-            }
-            else
-            {
-                _logger.LogWarning("Payment failed, sending notification");
-                await _notifyService.CreatePaymentFailureNotificationAsync(payment.Booking);
-            }
-            _logger.LogDebug("Gửi xong rồi");
 
             return new PaymentResponse
             {
                 Id = payment.Id,
-                BookingId = payment.BookingId,
+                BookingId = payment.BookingId ?? 0,
                 UserId = payment.UserId,
                 Amount = payment.Amount,
                 PaymentMethod = payment.PaymentMethod,
@@ -308,7 +319,7 @@ namespace HomestayBookingAPI.Services.PaymentServices
             return new PaymentResponse
             {
                 Id = payment.Id,
-                BookingId = payment.BookingId,
+                BookingId = payment.BookingId ?? 0,
                 UserId = payment.UserId,
                 Amount = payment.Amount,
                 PaymentMethod = payment.PaymentMethod,
@@ -330,7 +341,7 @@ namespace HomestayBookingAPI.Services.PaymentServices
             return payments.Select(p => new PaymentResponse
             {
                 Id = p.Id,
-                BookingId = p.BookingId,
+                BookingId = p.BookingId ?? 0,
                 UserId = p.UserId,
                 Amount = p.Amount,
                 PaymentMethod = p.PaymentMethod,
@@ -352,7 +363,7 @@ namespace HomestayBookingAPI.Services.PaymentServices
             return payments.Select(p => new PaymentResponse
             {
                 Id = p.Id,
-                BookingId = p.BookingId,
+                BookingId = p.BookingId ?? 0,
                 UserId = p.UserId,
                 Amount = p.Amount,
                 PaymentMethod = p.PaymentMethod,
@@ -363,6 +374,115 @@ namespace HomestayBookingAPI.Services.PaymentServices
                 CreatedAt = p.CreatedAt,
                 PaymentDate = p.PaymentDate
             });
+        }
+
+        public async Task<VNPayCreateResponse> CreateGenericPaymentAsync(GenericPaymentRequest request, string userId, string ipAddress)
+        {
+            // Kiểm tra dữ liệu đầu vào
+            if (request.Amount <= 0)
+            {
+                throw new ArgumentException("Số tiền phải lớn hơn 0");
+            }
+
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+            {
+                throw new Exception($"Không tìm thấy người dùng với ID {userId}");
+            }
+
+            // Xác định OrderInfo nếu chưa có
+            if (string.IsNullOrEmpty(request.OrderInfo))
+            {
+                request.OrderInfo = request.Purpose == PaymentPurpose.WalletDeposit
+                    ? $"Nạp {request.Amount:N0} VND vào ví"
+                    : $"Thanh toán đặt phòng #{request.BookingId}";
+            }
+
+            // Xác định OrderType nếu chưa có
+            if (string.IsNullOrEmpty(request.OrderType))
+            {
+                request.OrderType = request.Purpose == PaymentPurpose.WalletDeposit
+                    ? "200000" // Mã loại hình nạp ví
+                    : "270001"; // Mã loại hình mặc định
+            }
+
+            // Tạo Payment record
+            var payment = new Payment
+            {
+                UserId = userId,
+                BookingId = (request.Purpose == PaymentPurpose.BookingPayment ? request.BookingId : null),
+                Amount = request.Amount,
+                PaymentMethod = "VNPAY",
+                Status = "Pending",
+                Purpose = request.Purpose,
+                CreatedAt = DateTime.UtcNow,
+                TransactionId = "PENDING_" + Guid.NewGuid().ToString("N").Substring(0, 10),
+                PaymentUrl = "pending",
+                QrCodeUrl = "pending"
+            };
+
+            await _context.Payments.AddAsync(payment);
+            await _context.SaveChangesAsync();
+
+            // Tạo URL thanh toán VNPay
+            var vietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+            var vietnamNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTimeZone);
+            var createDate = vietnamNow.ToString("yyyyMMddHHmmss");
+            var expireDate = vietnamNow.AddMinutes(15).ToString("yyyyMMddHHmmss");
+
+            var vnpay = new VnPayLibrary();
+            vnpay.AddRequestData("vnp_Version", "2.1.0");
+            vnpay.AddRequestData("vnp_Command", "pay");
+            vnpay.AddRequestData("vnp_TmnCode", _vnpayConfig.Value.TmnCode);
+            vnpay.AddRequestData("vnp_Amount", ((long)(request.Amount * 100)).ToString());
+            vnpay.AddRequestData("vnp_CreateDate", createDate);
+            vnpay.AddRequestData("vnp_CurrCode", "VND");
+            vnpay.AddRequestData("vnp_IpAddr", ipAddress);
+            vnpay.AddRequestData("vnp_Locale", request.Locale);
+            vnpay.AddRequestData("vnp_OrderInfo", request.OrderInfo);
+            vnpay.AddRequestData("vnp_OrderType", request.OrderType);
+            vnpay.AddRequestData("vnp_ReturnUrl", request.ReturnUrl);
+            vnpay.AddRequestData("vnp_TxnRef", payment.Id.ToString());
+            vnpay.AddRequestData("vnp_ExpireDate", expireDate);
+
+            if (!string.IsNullOrEmpty(request.BankCode))
+            {
+                vnpay.AddRequestData("vnp_BankCode", request.BankCode);
+            }
+
+            // Tạo URL thanh toán
+            string paymentUrl = vnpay.CreateRequestUrl(_vnpayConfig.Value.PaymentUrl, _vnpayConfig.Value.HashSecret);
+
+            // Tạo QR code
+            string qrCodeUrl = paymentUrl;
+            string qrCodeBase64 = null;
+
+            try
+            {
+                QRCodeGenerator qrGenerator = new QRCodeGenerator();
+                QRCodeData qrCodeData = qrGenerator.CreateQrCode(paymentUrl, QRCodeGenerator.ECCLevel.Q);
+                PngByteQRCode qrCode = new PngByteQRCode(qrCodeData);
+                byte[] qrCodeBytes = qrCode.GetGraphic(20);
+                qrCodeBase64 = Convert.ToBase64String(qrCodeBytes);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi tạo QR code");
+            }
+
+            // Cập nhật URL vào payment record
+            payment.PaymentUrl = paymentUrl;
+            payment.QrCodeUrl = qrCodeUrl;
+            await _context.SaveChangesAsync();
+
+            return new VNPayCreateResponse
+            {
+                PaymentId = payment.Id,
+                PaymentUrl = paymentUrl,
+                QrCodeUrl = qrCodeUrl,
+                QrCodeBase64 = qrCodeBase64,
+                ExpireDate = DateTime.Now.AddMinutes(15)
+            };
         }
     }
 }

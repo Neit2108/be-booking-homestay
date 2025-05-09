@@ -1,6 +1,7 @@
 ﻿using HomestayBookingAPI.DTOs;
 using HomestayBookingAPI.Models;
 using HomestayBookingAPI.Services.JwtServices;
+using HomestayBookingAPI.Services.WalletServices;
 using Microsoft.AspNetCore.Identity;
 using System.Text.RegularExpressions;
 
@@ -10,13 +11,15 @@ namespace HomestayBookingAPI.Services.AuthService
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
+        private readonly IWalletService _walletService;
         private readonly IJwtService _jwtService;
 
-        public AuthService(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, IJwtService jwtService)
+        public AuthService(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, IJwtService jwtService, IWalletService walletService)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _jwtService = jwtService;
+            _walletService = walletService;
         }
 
         public async Task<ApplicationUser> RegisterUser(RegisterDTO model)
@@ -35,6 +38,8 @@ namespace HomestayBookingAPI.Services.AuthService
             {
                 await _userManager.AddToRoleAsync(user, "Tenant");
                 await _signInManager.SignInAsync(user, isPersistent: false);
+
+                await _walletService.GetOrCreateWalletAsync(user.Id);
                 return user;
             }
             return null;

@@ -1,5 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using HomestayBookingAPI.Models.Enum;
+using System.Text.Json.Serialization;
 
 namespace HomestayBookingAPI.Models
 {
@@ -9,8 +11,7 @@ namespace HomestayBookingAPI.Models
         public int Id { get; set; }
         [Required]
         public string UserId { get; set; }
-        [Required]
-        public int BookingId { get; set; }
+        public int? BookingId { get; set; }
         public double Amount { get; set; }
         public string PaymentMethod { get; set; } = "VNPAY";
         public string Status { get; set; } = "Pending";
@@ -19,6 +20,10 @@ namespace HomestayBookingAPI.Models
         public string? QrCodeUrl { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? PaymentDate { get; set; }
+        [Required]
+        [EnumDataType(typeof(PaymentPurpose))]
+        [JsonConverter(typeof(JsonStringEnumConverter))]
+        public PaymentPurpose Purpose { get; set; } = PaymentPurpose.BookingPayment;
         [ForeignKey("UserId")]
         public ApplicationUser User { get; set; }
         [ForeignKey("BookingId")]

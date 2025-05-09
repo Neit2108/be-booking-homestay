@@ -1,0 +1,36 @@
+From: HomiesStay <ldungtien.210804@gmail.com>
+Date: Wed, 07 May 2025 22:58:38 +0700
+Subject: =?utf-8?b?VGjDtG5nIGLDoW8gdGhhbmggdG/DoW4gdOG7qyBraMOhY2ggaMOgbmc=?=
+Message-Id: <WL9A5OUL3QU4.0LQB7OCP3DSJ@desktop-6egfl6f>
+To: system
+MIME-Version: 1.0
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+
+    <html>
+    <head>
+        <style>
+            body { font-family: 'Segoe UI', sans-serif; background-color: #f9f9f9; color: #333; }
+            .container { max-width: 600px; margin: auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+            h2 { color: #2196F3; }
+            .row { margin-bottom: 10px; }
+            .label { font-weight: bold; }
+            .price { color: #4CAF50; font-weight: bold; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>Thông báo thanh toán đặt phòng</h2>
+            <p>Chào system,</p>
+            <p>Khách hàng <strong>customer</strong> đã thanh toán thành công cho đặt phòng tại <strong>Homestay An Nhiên</strong>.</p>
+            <div class="row"><span class="label">Ngày nhận phòng:</span> 07/05/2025</div>
+            <div class="row"><span class="label">Ngày trả phòng:</span> 08/05/2025</div>
+            <div class="row"><span class="label">Số khách:</span> 1</div>
+            <div class="row"><span class="label">Tổng tiền:</span> <span class="price">2,909,440 VND</span></div>
+            <div class="row"><span class="label">Trạng thái:</span> Đã thanh toán</div>
+            <p>Vui lòng truy cập <a href="http://localhost:5173/auth/verify-action/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6InN5c3RlbSIsImFjdCI6IlBheW1lbnRTdWNjZXNzIiwicmVmIjoiMjAiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJMYW5kbG9yZCIsImV4cCI6MTc0NjYzNzEwOSwiaXNzIjoiaHR0cHM6Ly9ob21pZXNzdGF5Lm9ucmVuZGVyLmNvbSIsImF1ZCI6Imh0dHBzOi8vaG9taWVzLXdpbmUudmVyY2VsLmFwcC8ifQ.jvTm4h3I0_ZP7nmkM9sqzjKCQvN3tGPPfxnXl_GpGGg">vào đây</a> để xem chi tiết đặt phòng.</p>
+            <p>Trân trọng,<br>Đội ngũ HomestayBooking</p>
+        </div>
+    </body>
+    </html>

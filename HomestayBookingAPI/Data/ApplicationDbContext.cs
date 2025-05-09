@@ -21,6 +21,8 @@ namespace HomestayBookingAPI.Data
         public DbSet<Contact> Contacts { get; set; } 
         public DbSet<Payment> Payments { get; set; }
         public DbSet<Promotion> Promotions { get; set; }
+        public DbSet<Wallet> Wallets { get; set; }
+        public DbSet<WalletTransaction> WalletTransactions { get; set; }
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
@@ -88,12 +90,33 @@ namespace HomestayBookingAPI.Data
                 .ValueGeneratedOnAddOrUpdate()
                 .IsConcurrencyToken();
 
-
             modelBuilder.Entity<Comment>()
                .HasMany(c => c.Images)
                .WithOne(i => i.Comment)
                .HasForeignKey(i => i.CommentId)
                .OnDelete(DeleteBehavior.Cascade);
+
+            // Ràng buộc cho Wallet
+            modelBuilder.Entity<Wallet>()
+            .HasOne(w => w.User)
+            .WithOne()
+            .HasForeignKey<Wallet>(w => w.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Wallet>()
+                .Property(w => w.Balance)
+                .HasColumnType("decimal(18, 2)");
+
+            // ràng buộc cho WalletTransaction
+            modelBuilder.Entity<WalletTransaction>()
+                .HasOne(wt => wt.Wallet)
+                .WithMany()
+                .HasForeignKey(wt => wt.WalletId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<WalletTransaction>()
+                .Property(wt => wt.Amount)
+                .HasColumnType("decimal(18, 2)");
 
             base.OnModelCreating(modelBuilder);
             // Xóa Asp

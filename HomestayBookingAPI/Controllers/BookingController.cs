@@ -1,8 +1,11 @@
 ﻿using HomestayBookingAPI.Data;
 using HomestayBookingAPI.DTOs.Booking;
+using HomestayBookingAPI.DTOs.Wallet;
 using HomestayBookingAPI.Models.Enum;
 using HomestayBookingAPI.Services.BookingServices;
+using HomestayBookingAPI.Services.NotifyServices;
 using HomestayBookingAPI.Services.PlaceServices;
+using HomestayBookingAPI.Services.WalletServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -19,13 +22,17 @@ namespace HomestayBookingAPI.Controllers
         private readonly IPlaceService _placeService;
         private readonly ApplicationDbContext _context;
         private readonly ILogger<BookingController> _logger;
+        private readonly IWalletService _walletService;
+        private readonly INotifyService _notifyService;
 
-        public BookingController(IBookingService bookingService, ApplicationDbContext context, IPlaceService placeService, ILogger<BookingController> logger)
+        public BookingController(IBookingService bookingService, ApplicationDbContext context, IPlaceService placeService, ILogger<BookingController> logger, IWalletService walletService, INotifyService notifyService)
         {
             _bookingService = bookingService;
             _context = context;
             _placeService = placeService;
             _logger = logger;
+            _walletService = walletService;
+            _notifyService = notifyService;
         }
 
         [HttpGet("all-bookings")]
@@ -250,6 +257,87 @@ namespace HomestayBookingAPI.Controllers
             else
             {
                 return Ok(new { canComment = false, message = "Bạn không thể bình luận vì chưa có đơn đặt nào" });
+            }
+        }
+
+
+        [HttpPost("pay-with-wallet")]
+        [Authorize(AuthenticationSchemes = "Bearer")]
+        public async Task<IActionResult> PayWithWallet([FromBody] PayWithPinRequest request)
+        {
+            try
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                int bookingId = request.BookingId;
+
+                // Kiểm tra booking
+                var booking = await _context.Bookings.FindAsync(bookingId);
+                if (booking == null)
+                {
+                    return NotFound(new { message = $"Không tìm thấy đơn đặt phòng với ID {bookingId}" });
+                }
+
+                // Kiểm tra quyền
+                if (booking.UserId != userId)
+                {
+                    return BadRequest(new { message = "Bạn không có quyền thanh toán đơn này" });
+                }
+
+                // Kiểm tra trạng thái
+                if (booking.Status != BookingStatus.Confirmed)
+                {
+                    return BadRequest(new { message = "Đơn đặt phòng chưa được xác nhận" });
+                }
+
+                if (booking.PaymentStatus == PaymentStatus.Paid)
+                {
+                    return BadRequest(new { message = "Đơn đặt phòng đã được thanh toán" });
+                }
+
+                // Kiểm tra người dùng đã thiết lập PIN chưa
+                var hasPin = await _walletService.HasSetPinAsync(userId);
+                if (!hasPin)
+                {
+                    return BadRequest(new { message = "Bạn chưa thiết lập mã PIN cho ví. Vui lòng thiết lập PIN trước khi thanh toán" });
+                }
+
+                // Xác thực PIN
+                bool isPinValid = await _walletService.VerifyPinAsync(userId, request.Pin);
+                if (!isPinValid)
+                {
+                    return BadRequest(new { message = "Mã PIN không chính xác" });
+                }
+
+                // Kiểm tra số dư ví
+                var hasEnoughFunds = await _walletService.HasSufficientFundsAsync(userId, booking.TotalPrice);
+                if (!hasEnoughFunds)
+                {
+                    return BadRequest(new { message = "Số dư ví không đủ để thanh toán" });
+                }
+
+                // Thực hiện thanh toán
+                await _walletService.AddTransactionAsync(
+                    userId,
+                    booking.TotalPrice,
+                    TransactionType.Payment,
+                    $"Thanh toán đơn đặt phòng #{bookingId}",
+                    bookingId
+                );
+
+                // Cập nhật trạng thái booking
+                booking.PaymentStatus = PaymentStatus.Paid;
+                booking.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+
+                // Gửi thông báo thành công
+                await _notifyService.CreatePaymentSuccessNotificationAsync(booking);
+
+                return Ok(new { message = "Thanh toán thành công", bookingId = bookingId });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Lỗi khi thanh toán booking {request.BookingId} bằng ví");
+                return StatusCode(500, new { message = "Đã xảy ra lỗi: " + ex.Message });
             }
         }
     }
