@@ -341,38 +341,6 @@ namespace HomestayBookingAPI.Services.BookingServices
             return booking;
         }
 
-        public async Task<IEnumerable<BookingResponse>> GetBookingsByPlaceIdAsync(int placeId)
-        {
-            var place = await _placeService.GetPlaceByID(placeId);
-            
-            var bookings = await _context.Bookings
-                .Include(b => b.Place)
-                .Where(b => b.PlaceId == placeId)
-                .Select(b => new BookingResponse
-                {
-                    Id = b.Id,
-                    UserId = b.UserId,
-                    PlaceId = b.PlaceId,
-                    PlaceName = b.Place.Name,
-                    PlaceAddress = b.Place.Address,
-                    StartDate = b.StartDate,
-                    EndDate = b.EndDate,
-                    NumberOfGuests = b.NumberOfGuests,
-                    TotalPrice = b.TotalPrice,
-                    Status = b.Status,
-                    PaymentStatus = b.PaymentStatus,
-                    ImageUrl = place.Images != null && place.Images.Any() ? place.Images.FirstOrDefault().ImageUrl : null
-                })
-                .ToListAsync();
-
-            if (!bookings.Any())
-            {
-                _logger.LogInformation("No bookings found for place {PlaceId}", placeId);
-            }
-
-            return bookings;
-        }
-
         public async Task<IEnumerable<BookingResponse>> GetBookingsByUserIdAsync(string userId)
         {
             var bookings = await _context.Bookings
@@ -405,6 +373,96 @@ namespace HomestayBookingAPI.Services.BookingServices
             if (!bookings.Any())
             {
                 _logger.LogInformation("No bookings found for user {UserId}", userId);
+            }
+
+            return bookings;
+        }
+
+        public async Task<IEnumerable<BookingResponse>> GetBookingsByLandlordIdAsync(string landlordId)
+        {
+            var bookings = await _context.Bookings
+            .AsNoTracking()
+            .Join(
+                _context.Places.Where(p => p.OwnerId == landlordId),
+                b => b.PlaceId,
+                p => p.Id,
+                (b, p) => new { Booking = b, Place = p }
+            )
+            .GroupJoin(
+                _context.PlaceImages,
+                bp => bp.Place.Id,
+                img => img.PlaceId,
+                (bp, images) => new { bp.Booking, bp.Place, Images = images }
+            )
+            .SelectMany(
+                x => x.Images.Take(1).DefaultIfEmpty(),
+                (x, img) => new BookingResponse
+                {
+                    Id = x.Booking.Id,
+                    UserId = x.Booking.UserId,
+                    PlaceId = x.Booking.PlaceId,
+                    PlaceName = x.Place.Name,
+                    PlaceAddress = x.Place.Address,
+                    StartDate = x.Booking.StartDate,
+                    EndDate = x.Booking.EndDate,
+                    NumberOfGuests = x.Booking.NumberOfGuests,
+                    TotalPrice = x.Booking.TotalPrice,
+                    Status = x.Booking.Status,
+                    PaymentStatus = x.Booking.PaymentStatus,
+                    ImageUrl = img != null ? img.ImageUrl : null
+                }
+            )
+            .ToListAsync();
+
+            if (!bookings.Any())
+            {
+                _logger.LogInformation("No bookings found for landlord {landlordId}", landlordId);
+            }
+
+            return bookings;
+        }
+
+        public async Task<IEnumerable<BookingResponse>> GetBookingsByPlaceIdAsync(int placeId)
+        {
+            var bookings = await _context.Bookings
+                .AsNoTracking()
+                .Where(b => b.PlaceId == placeId)
+                .Join(
+                    _context.Places.Where(p => p.Id == placeId)
+                        .Select(p => new { p.Id, p.Name, p.Address }),
+                    b => b.PlaceId,
+                    p => p.Id,
+                    (b, p) => new { Booking = b, Place = p }
+                )
+                .GroupJoin(
+                    _context.PlaceImages.Where(pi => pi.PlaceId == placeId).Take(1),
+                    bp => bp.Place.Id,
+                    pi => pi.PlaceId,
+                    (bp, images) => new { bp.Booking, bp.Place, Images = images }
+                )
+                .SelectMany(
+                    x => x.Images.DefaultIfEmpty(),
+                    (x, img) => new BookingResponse
+                    {
+                        Id = x.Booking.Id,
+                        UserId = x.Booking.UserId,
+                        PlaceId = x.Booking.PlaceId,
+                        PlaceName = x.Place.Name,
+                        PlaceAddress = x.Place.Address,
+                        StartDate = x.Booking.StartDate,
+                        EndDate = x.Booking.EndDate,
+                        NumberOfGuests = x.Booking.NumberOfGuests,
+                        TotalPrice = x.Booking.TotalPrice,
+                        Status = x.Booking.Status,
+                        PaymentStatus = x.Booking.PaymentStatus,
+                        ImageUrl = img != null ? img.ImageUrl : null
+                    }
+                )
+                .ToListAsync();
+
+            if (!bookings.Any())
+            {
+                _logger.LogInformation("No bookings found for place {PlaceId}", placeId);
             }
 
             return bookings;

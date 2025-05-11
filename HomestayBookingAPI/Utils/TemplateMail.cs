@@ -1,4 +1,5 @@
-﻿using HomestayBookingAPI.Data;
+﻿using System.Threading.Tasks;
+using HomestayBookingAPI.Data;
 using HomestayBookingAPI.Models;
 using HomestayBookingAPI.Models.Enum;
 
@@ -133,7 +134,6 @@ namespace HomestayBookingAPI.Utils
                     </html>";
         }
 
-        // Utils/TemplateMail.cs - Thêm các template email cho thanh toán
         public static string PaymentSuccessEmail(Booking booking, string url)
         {
             return $@"
@@ -226,6 +226,39 @@ namespace HomestayBookingAPI.Utils
         </div>
     </body>
     </html>";
+        }
+
+        public static string DepositSuccessEmail(WalletTransaction walletTransaction, string url)
+        {
+            
+            return $@"
+<html>
+    <head>
+        <style>
+            body {{ font-family: 'Segoe UI', sans-serif; background-color: #f9f9f9; color: #333; }}
+            .container {{ max-width: 600px; margin: auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+            h2 {{ color: #2196F3; }}
+            .row {{ margin-bottom: 10px; }}
+            .label {{ font-weight: bold; }}
+            .price {{ color: #4CAF50; font-weight: bold; }}
+        </style>
+    </head>
+<body>
+        <div class=""container"">
+            <h2>Thông báo nạp tiền thành công</h2>
+            <p>Chào {walletTransaction.Wallet?.User?.FullName ?? "Quý khách"},</p>
+            <p>Giao dịch nạp tiền <strong>{walletTransaction.Id}</strong> thành công.</p>
+            <div class=""row""><span class=""label"">Mã giao dịch:</span> {walletTransaction.Payment.TransactionId}</div>
+            <div class=""row""><span class=""label"">Nội dung:</span> {walletTransaction.Description}</div>
+            <div class=""row""><span class=""label"">Ngày tạo:</span> {walletTransaction.CreatedAt}</div>
+            <div class=""row""><span class=""label"">Tổng tiền:</span> <span class=""price"">{walletTransaction.Amount:N0} VND</span></div>
+            <div class=""row""><span class=""label"">Trạng thái:</span> Đã nạp thành công</div>
+            
+            <p>Trân trọng,<br>Đội ngũ HomestayBooking</p>
+        </div>
+    </body>
+    </html>
+";
         }
 
     }

@@ -10,6 +10,7 @@ namespace HomestayBookingAPI.Services.BookingServices
         Task<BookingResponse> GetBookingByIdAsync(int id);
         Task<IEnumerable<BookingResponse>> GetAllBookingsAsync(string? status, DateTime? startDate, DateTime? endDate, int page, int pageSize);
         Task<IEnumerable<BookingResponse>> GetBookingsByUserIdAsync(string userId);
+        Task<IEnumerable<BookingResponse>> GetBookingsByLandlordIdAsync(string landlordId);
         Task<IEnumerable<BookingResponse>> GetBookingsByPlaceIdAsync(int placeId);
         Task<bool> UpdateBookingStatusAsync(int id, BookingStatus status, string currentRole, string rejectReason = "Không xác định");
         Task<bool> DeleteBookingAsync(int id);

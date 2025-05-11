@@ -351,5 +351,38 @@ namespace HomestayBookingAPI.Services.NotifyServices
 
             await _context.SaveChangesAsync();
         }
+
+        public async Task CreateWalletTransactionNotificationAsync(WalletTransaction transaction)
+        {
+            var user = await _context.Users.FindAsync(transaction.Wallet.UserId);
+            if (user == null)
+            {
+                throw new Exception("User not found");
+            }
+            var token = _jwtService.GenerateActionToken(user.Id, NotificationType.WalletTransaction.ToString(), transaction.Id, "Tenant");
+            var notify = new Notification
+            {
+                RecipientId = user.Id,
+                SenderId = "system",
+                Type = NotificationType.WalletTransaction,
+                Title = "Giao dịch nạp tiền vào ví",
+                Message = $"Giao dịch nạp tiền của bạn đã được thực hiện thành công. Số tiền: {transaction.Amount} VNĐ.",
+                Url = $"{_baseUrl}/auth/verify-action/{token}",
+                Status = NotificationStatus.Pending,
+            };
+            try
+            {
+                var emailTemplate = TemplateMail.DepositSuccessEmail(transaction, notify.Url);
+                var jobId = _backgroundJobClient.Enqueue(() => _emailService.SendEmailAsync(user.Email, "Nạp tiền thành công", emailTemplate));
+                notify.JobId = jobId;
+            }
+            catch (Exception ex)
+            {
+                notify.Status = NotificationStatus.Failed;
+                _logger.LogError(ex, "Failed to send wallet transaction notification email");
+            }
+            await _context.Notifications.AddAsync(notify);
+            await _context.SaveChangesAsync();
+        }
     }
 }

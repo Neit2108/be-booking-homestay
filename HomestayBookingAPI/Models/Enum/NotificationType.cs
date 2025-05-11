@@ -7,6 +7,7 @@
         BookingConfirmation, // xác nhận đặt chỗ
         BookingCancellation, // hủy đặt chỗ
         PaymentSuccess, // thanh toán thành công
+        WalletTransaction, // giao dịch ví
         PaymentFailure,
         ReviewReceived,
         ReviewResponse,

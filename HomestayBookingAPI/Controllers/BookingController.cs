@@ -109,17 +109,9 @@ namespace HomestayBookingAPI.Controllers
         [Authorize(AuthenticationSchemes = "Bearer", Roles = "Admin, Landlord")]
         public async Task<ActionResult<IEnumerable<BookingResponse>>> GetAllBookingOfLandlord(string landlordId)
         {
-            var places = await _placeService.GetAllPlacesOfLandlord(landlordId);
+            //var places = await _placeService.GetAllPlacesOfLandlord(landlordId);
 
-            var bookings = new List<BookingResponse>();
-            foreach (var place in places)
-            {
-                var placeBookings = await _bookingService.GetBookingsByPlaceIdAsync(place.Id);
-                if (placeBookings != null && placeBookings.Any())
-                {
-                    bookings.AddRange(placeBookings);
-                }
-            }
+            var bookings = await _bookingService.GetBookingsByLandlordIdAsync(landlordId);
             if (bookings == null || !bookings.Any())
             {
                 return NotFound($"No bookings found for landlord ID {landlordId}.");

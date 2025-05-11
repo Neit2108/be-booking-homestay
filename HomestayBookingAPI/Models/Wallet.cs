@@ -14,9 +14,8 @@ namespace HomestayBookingAPI.Models
         [Required]
         [Range(0, double.MaxValue)]
         public double Balance { get; set; } = 0; // Số dư tài khoản, mặc định là 0
-        [Required]
         [StringLength(256)]
-        public string PinHash { get; set; }
+        public string? PinHash { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

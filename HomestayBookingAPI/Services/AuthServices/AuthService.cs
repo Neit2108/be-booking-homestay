@@ -1,4 +1,5 @@
 ﻿using HomestayBookingAPI.DTOs;
+using HomestayBookingAPI.DTOs.Password;
 using HomestayBookingAPI.Models;
 using HomestayBookingAPI.Services.JwtServices;
 using HomestayBookingAPI.Services.WalletServices;
@@ -31,7 +32,8 @@ namespace HomestayBookingAPI.Services.AuthService
                 Email = model.Email,
                 PhoneNumber = model.PhoneNumber,
                 HomeAddress = model.HomeAddress,
-                UserName = model.Username
+                UserName = model.Username,
+                CreateAt = DateTime.UtcNow,
             };
             var result = await _userManager.CreateAsync(user, model.Password);
             if (result.Succeeded)
@@ -63,6 +65,23 @@ namespace HomestayBookingAPI.Services.AuthService
                 FullName = user.FullName,
                 AvatarUrl = user.AvatarUrl
             };
+        }
+
+        public async Task<bool> ChangePasswordAsync(ChangePasswordRequest request)
+        {
+            var user = await _userManager.FindByIdAsync(request.UserId);
+            if (user == null)
+            {
+                return false;
+            }
+            var result = await _userManager.ChangePasswordAsync(user, request.OldPassword, request.NewPassword);
+            if (result.Succeeded)
+            {
+                user.PasswordChangeAt = DateTime.UtcNow;
+                await _userManager.UpdateAsync(user);
+                return true;
+            }
+            return false;
         }
     }
 }

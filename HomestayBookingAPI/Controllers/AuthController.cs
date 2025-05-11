@@ -1,4 +1,5 @@
 ﻿using HomestayBookingAPI.DTOs;
+using HomestayBookingAPI.DTOs.Password;
 using HomestayBookingAPI.Models;
 using HomestayBookingAPI.Services;
 using HomestayBookingAPI.Services.AuthService;
@@ -48,11 +49,17 @@ namespace HomestayBookingAPI.Controllers
             });
         }
 
-        //[HttpPost("logout")]
-        //public async Task<IActionResult> Logout()
-        //{
-
-        //}
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+        {
+            var result = await _authService.ChangePasswordAsync(request);
+            if (result)
+            {
+                return Ok(new { message = "Đổi mật khẩu thành công"
+                });
+            }
+            return BadRequest(new { message = "Mật khẩu cũ không chính xác" });
+        }
 
     }
 }

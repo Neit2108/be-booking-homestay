@@ -35,7 +35,10 @@ namespace HomestayBookingAPI.Models
         [Column(TypeName = "text")]
         [StringLength(1000)]
         public string? Bio { get; set; }
-
+        [DataType(DataType.Date)]
+        public DateTime? CreateAt { get; set; } = DateTime.UtcNow;
+        [DataType(DataType.Date)]
+        public DateTime? PasswordChangeAt { get; set; } = DateTime.UtcNow;
         public List<Favourite> Favourites { get; set; } = new List<Favourite>();
 
     }

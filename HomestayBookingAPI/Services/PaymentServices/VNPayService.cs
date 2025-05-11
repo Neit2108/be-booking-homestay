@@ -171,7 +171,6 @@ namespace HomestayBookingAPI.Services.PaymentServices
             };
         }
 
-        // Phương thức tùy chọn để lấy URL QR trực tiếp từ VNPay nếu họ cung cấp API
         private async Task<string> GetQRDirectLinkAsync(string paymentUrl, double amount, string txnRef)
         {
             try
@@ -274,7 +273,7 @@ namespace HomestayBookingAPI.Services.PaymentServices
                 else if (payment.Purpose == PaymentPurpose.WalletDeposit)
                 {
                     // Tìm ví của người dùng và nạp tiền
-                    await _walletService.AddTransactionAsync(
+                    var walletTransaction = await _walletService.AddTransactionAsync(
                         payment.UserId,
                         payment.Amount,
                         TransactionType.Deposit,
@@ -282,8 +281,19 @@ namespace HomestayBookingAPI.Services.PaymentServices
                         null,
                         payment.Id
                     );
-
+                    walletTransaction.Payment = payment;
                     
+                    var wallet = await _context.Wallets
+                        .Include(w => w.User)
+                        .FirstOrDefaultAsync(w => w.UserId == payment.UserId);
+                    if (wallet != null)
+                    {
+                        walletTransaction.Wallet = wallet;
+                    }
+
+                    // Gửi thông báo nạp tiền thành công
+                    await _notifyService.CreateWalletTransactionNotificationAsync(walletTransaction);
+
                 }
             }
 

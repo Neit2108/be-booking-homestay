@@ -12,7 +12,7 @@ using HomestayBookingAPI.Services.PaymentServices;
 using HomestayBookingAPI.Services.PlaceServices;
 using HomestayBookingAPI.Services.ProfileServices;
 using HomestayBookingAPI.Services.PromotionServices;
-using HomestayBookingAPI.Services.StatisticsServices;
+using HomestayBookingAPI.Services.SalesStatisticsServices;
 using HomestayBookingAPI.Services.TestCaseServices;
 using HomestayBookingAPI.Services.TopRatePlaceServices;
 using HomestayBookingAPI.Services.UserServices;
@@ -41,13 +41,13 @@ namespace HomestayBookingAPI.Configuration
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<IJwtService, JwtService>();
             services.AddScoped<ITestCaseService, TestCaseService>();
-            services.AddScoped<IStatisticsService, StatisticsService>();
             services.AddScoped<ICommentService, CommentService>();
             services.AddScoped<IContactService, ContactService>();
             services.AddScoped<IVNPayService, VNPayService>();
             services.AddScoped<IBookingLifecycleService, BookingLifecycleService>();
             services.AddScoped<IPromotionService, PromotionService>();
             services.AddScoped<IWalletService, WalletService>();
+            services.AddScoped<ISalesStatisticsService, SalesStatisticsService>();
             services.AddScoped<HttpClient>();
 
             services.AddLogging(logging =>
