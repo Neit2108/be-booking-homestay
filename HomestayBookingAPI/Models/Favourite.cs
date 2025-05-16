@@ -6,7 +6,6 @@ namespace HomestayBookingAPI.Models
     public class Favourite
     {
         public string UserId { get; set; }
-
         public int PlaceId { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; }

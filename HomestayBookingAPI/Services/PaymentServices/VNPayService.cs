@@ -493,6 +493,8 @@ namespace HomestayBookingAPI.Services.PaymentServices
                 QrCodeBase64 = qrCodeBase64,
                 ExpireDate = DateTime.Now.AddMinutes(15)
             };
+
+            
         }
     }
 }

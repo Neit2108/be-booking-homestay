@@ -14,5 +14,6 @@
         public string Status { get; set; } 
         public string OwnerId { get; set; }
         public List<PlaceImageDTO> Images { get; set; }
+        public bool? IsFavourite { get; set; }
     }
 }

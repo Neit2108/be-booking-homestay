@@ -252,8 +252,9 @@ namespace HomestayBookingAPI.Utils
             <div class=""row""><span class=""label"">Nội dung:</span> {walletTransaction.Description}</div>
             <div class=""row""><span class=""label"">Ngày tạo:</span> {walletTransaction.CreatedAt}</div>
             <div class=""row""><span class=""label"">Tổng tiền:</span> <span class=""price"">{walletTransaction.Amount:N0} VND</span></div>
+            <div class=""row""><span class=""label"">Số dư ví:</span> <span class=""price"">{walletTransaction.Wallet?.Balance:N0} VND</span></div>
             <div class=""row""><span class=""label"">Trạng thái:</span> Đã nạp thành công</div>
-            
+            <p>Vui lòng truy cập <a href=""{url}"">vào đây</a> để xem chi tiết đặt phòng.</p>
             <p>Trân trọng,<br>Đội ngũ HomestayBooking</p>
         </div>
     </body>

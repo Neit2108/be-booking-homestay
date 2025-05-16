@@ -108,14 +108,22 @@ namespace HomestayBookingAPI.Services.PlaceServices
             }
         }
 
-        public async Task<List<PlaceDTO>> GetAllPlacesAsync()
+        public async Task<List<PlaceDTO>> GetAllPlacesAsync(string userId)
         {
             try
             {
                 var places = await _context.Places
                     .Include(p => p.Images)
                     .ToListAsync();
-
+                var userFavorites = await _context.Favourites
+                    .Where(f => f.UserId == userId)
+                    .Select(f => f.PlaceId)
+                    .ToListAsync();
+                foreach(var x in userFavorites)
+                {
+                    _logger.LogDebug("userFavourite " + x + "\n");
+                }
+                
                 return places.Select(p => new PlaceDTO
                 {
                     Id = p.Id,
@@ -136,7 +144,8 @@ namespace HomestayBookingAPI.Services.PlaceServices
                         })
                         .OrderBy(i => i.Id)
                         .ToList()
-                        : new List<PlaceImageDTO>()
+                        : new List<PlaceImageDTO>(),
+                    IsFavourite = userFavorites.Contains(p.Id) 
                 }).ToList();
             }
             catch (Exception ex)
@@ -153,6 +162,10 @@ namespace HomestayBookingAPI.Services.PlaceServices
                 .Include(p => p.Images)
                 .Where(p => p.OwnerId == landlordId)
                 .ToListAsync();
+                var userFavorites = await _context.Favourites
+                    .Where(f => f.UserId == landlordId)
+                    .Select(f => f.PlaceId)
+                    .ToListAsync();
                 return places.Select(p => new PlaceDTO
                 {
                     Id = p.Id,
@@ -173,7 +186,8 @@ namespace HomestayBookingAPI.Services.PlaceServices
                             })
                             .OrderBy(i => i.Id)
                             .ToList()
-                            : new List<PlaceImageDTO>()
+                            : new List<PlaceImageDTO>(),
+                    IsFavourite = userFavorites.Contains(p.Id)
                 }).ToList();
             }
             catch (Exception ex)
@@ -183,7 +197,7 @@ namespace HomestayBookingAPI.Services.PlaceServices
 
         }
 
-        public async Task<PlaceDTO> GetPlaceByID(int id)
+        public async Task<PlaceDTO> GetPlaceByID(int id, string userId)
         {
             var place =  await _context.Places
                 .Include(p => p.Images)
@@ -192,6 +206,12 @@ namespace HomestayBookingAPI.Services.PlaceServices
             {
                 throw new Exception("Place not found");
             }
+
+            var userFavorites = await _context.Favourites
+                .Where(f => f.UserId == userId)
+                .Select(f => f.PlaceId)
+                .ToListAsync();
+
             return new PlaceDTO
             {
                 Id = place.Id,
@@ -210,11 +230,12 @@ namespace HomestayBookingAPI.Services.PlaceServices
                     ImageUrl = i.ImageUrl
                 })
                 .OrderBy(i => i.Id)
-                .ToList()
+                .ToList(),
+                IsFavourite = userFavorites.Contains(place.Id)
             };
         }
 
-        public async Task<List<PlaceDTO>> GetSameCategoryPlaces(int id)
+        public async Task<List<PlaceDTO>> GetSameCategoryPlaces(int id, string userId)
         {
             
             try
@@ -230,6 +251,11 @@ namespace HomestayBookingAPI.Services.PlaceServices
                     .Where(p => p.Category == this_place.Category && p.Id != id)
                     .Include(p => p.Images)
                     .Take(4)
+                    .ToListAsync();
+
+                var userFavorites = await _context.Favourites
+                    .Where(f => f.UserId == userId)
+                    .Select(f => f.PlaceId)
                     .ToListAsync();
 
                 return sameCategoryPlaces.Select(p => new PlaceDTO
@@ -252,7 +278,8 @@ namespace HomestayBookingAPI.Services.PlaceServices
                         })
                         .OrderBy(i => i.Id) 
                         .ToList()
-                        : new List<PlaceImageDTO>()
+                        : new List<PlaceImageDTO>(),
+                    IsFavourite = userFavorites.Contains(p.Id)
                 }).ToList();
 
             }
@@ -263,7 +290,7 @@ namespace HomestayBookingAPI.Services.PlaceServices
 
         }
 
-        public async Task<List<PlaceDTO>> GetTopRatePlace(int limit)
+        public async Task<List<PlaceDTO>> GetTopRatePlace(int limit, string userId)
         {
             var lastUpdate = await _context.TopRatePlaces
                 .OrderByDescending(trp => trp.LastUpdated)
@@ -288,6 +315,11 @@ namespace HomestayBookingAPI.Services.PlaceServices
                 .Where(p => topRatePlaceID.Contains(p.Id))
                 .ToListAsync(); // lay thong tin cua top rate places
 
+            var userFavorites = await _context.Favourites
+                .Where(f => f.UserId == userId)
+                .Select(f => f.PlaceId)
+                .ToListAsync();
+
             places = topRatePlaceID.Select(id => places.First(p => p.Id == id)).ToList(); // sap xep lai theo thu tu top rate
 
             return places.Select(p => new PlaceDTO
@@ -308,7 +340,8 @@ namespace HomestayBookingAPI.Services.PlaceServices
                     ImageUrl = i.ImageUrl
                 })
                 .OrderBy(i => i.Id) // sap xep lai theo thu tu id
-                .ToList()
+                .ToList(),
+                IsFavourite = userFavorites.Contains(p.Id)
             }).ToList();
         }
 
@@ -489,7 +522,7 @@ namespace HomestayBookingAPI.Services.PlaceServices
                 throw new ArgumentException("Danh sách ảnh không được null hoặc rỗng.");
             }
 
-            var place = await GetPlaceByID(placeId);
+            var place = await _context.Places.FindAsync(placeId);
             if (place == null)
             {
                 _logger.LogError("Place not found");

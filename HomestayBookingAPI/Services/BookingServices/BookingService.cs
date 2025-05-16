@@ -45,12 +45,14 @@ namespace HomestayBookingAPI.Services.BookingServices
             {
                 throw new ArgumentException("End date must be after start date");
             }
-            var place = await _placeService.GetPlaceByID(bookingRequest.PlaceId);
+            //var place = await _placeService.GetPlaceByID(bookingRequest.PlaceId);
+            var place = await _context.Places.FindAsync(bookingRequest.PlaceId);
+
+
             var pricePerNight = place.Price;
-            _logger.LogDebug($"Giá tiền mỗi đêm của địa điểm {bookingRequest.PlaceId} là : {pricePerNight}");
+            
             var totalPrice = pricePerNight * numberOfDays;
-            _logger.LogDebug($"Total price: {totalPrice}");
-            _logger.LogDebug($"Số ngày {numberOfDays}");
+            
             if(bookingRequest.NumberOfGuests >= 3)
             {
                 totalPrice += totalPrice * 0.3;
@@ -60,12 +62,7 @@ namespace HomestayBookingAPI.Services.BookingServices
                 totalPrice = await _voucherService.ApplyVoucherAsync(bookingRequest.Voucher, totalPrice);
                 _logger.LogDebug("Voucher được dùng : " + bookingRequest.Voucher);
             }
-            _logger.LogDebug("***************" +
-                "                   " +
-                "                   " +
-                "                    " +
-                "*********************\n");
-            _logger.LogDebug($"Total price (after): {totalPrice}");
+            
             return totalPrice;
 
         }
@@ -80,7 +77,7 @@ namespace HomestayBookingAPI.Services.BookingServices
                     throw new ArgumentException("StartDate must be earlier than EndDate");
                 }
 
-                var placeExists = await _placeService.GetPlaceByID(placeId);
+                var placeExists = await _context.Places.FindAsync(placeId);
                 if (placeExists == null)
                 {
                     _logger.LogWarning("Place with ID {PlaceId} does not exist", placeId);

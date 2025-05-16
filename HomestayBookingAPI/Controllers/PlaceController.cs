@@ -9,12 +9,14 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
 namespace HomestayBookingAPI.Controllers
 {
     [Route("places")]
     [ApiController]
+    
     public class PlaceController : ControllerBase
     {
         private readonly IPlaceService _placeService;
@@ -31,19 +33,73 @@ namespace HomestayBookingAPI.Controllers
         [HttpGet("top-rating")]
         public async Task<ActionResult<List<PlaceDTO>>> GetTopRatingPlaces(int limit = 5)
         {
+            string userId = null;
+
+            // Kiểm tra header Authorization
+            var authHeader = Request.Headers["Authorization"].ToString();
+            if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer "))
+            {
+                try
+                {
+                    var token = authHeader.Substring("Bearer ".Length).Trim();
+                    var handler = new JwtSecurityTokenHandler();
+                    var jwtToken = handler.ReadJwtToken(token);
+                    userId = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+
+                    if (string.IsNullOrEmpty(userId))
+                    {
+                        _logger.LogDebug("UserId not found in token");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error parsing token, proceeding without userId");
+                }
+            }
+            else
+            {
+                _logger.LogDebug("No valid Bearer token provided");
+            }
             if (limit <= 0)
             {
                 return BadRequest("Số lượng phải lớn hơn 0");
             }
 
-            var places = await _placeService.GetTopRatePlace(limit);
+            var places = await _placeService.GetTopRatePlace(limit, userId);
             return Ok(places);
         }
 
         [HttpGet("place-details/{id}")]
         public async Task<ActionResult<PlaceDTO>> GetPlaceById(int id)
         {
-            var place = await _placeService.GetPlaceByID(id);
+            string userId = null;
+
+            // Kiểm tra header Authorization
+            var authHeader = Request.Headers["Authorization"].ToString();
+            if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer "))
+            {
+                try
+                {
+                    var token = authHeader.Substring("Bearer ".Length).Trim();
+                    var handler = new JwtSecurityTokenHandler();
+                    var jwtToken = handler.ReadJwtToken(token);
+                    userId = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+
+                    if (string.IsNullOrEmpty(userId))
+                    {
+                        _logger.LogDebug("UserId not found in token");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error parsing token, proceeding without userId");
+                }
+            }
+            else
+            {
+                _logger.LogDebug("No valid Bearer token provided");
+            }
+            var place = await _placeService.GetPlaceByID(id, userId);
             if (place == null)
             {
                 return NotFound($"Không tìm thấy Place với Id {id}.");
@@ -51,12 +107,43 @@ namespace HomestayBookingAPI.Controllers
             return Ok(place);
         }
 
+
         [HttpGet("get-all")]
         public async Task<ActionResult<List<PlaceDTO>>> GetAllPlaces()
         {
-            var places = await _placeService.GetAllPlacesAsync();
+            string userId = null;
+
+            // Kiểm tra header Authorization
+            var authHeader = Request.Headers["Authorization"].ToString();
+            if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer "))
+            {
+                try
+                {
+                    var token = authHeader.Substring("Bearer ".Length).Trim();
+                    var handler = new JwtSecurityTokenHandler();
+                    var jwtToken = handler.ReadJwtToken(token);
+                    userId = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+
+                    if (string.IsNullOrEmpty(userId))
+                    {
+                        _logger.LogDebug("UserId not found in token");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error parsing token, proceeding without userId");
+                }
+            }
+            else
+            {
+                _logger.LogDebug("No valid Bearer token provided");
+            }
+
+            // Lấy danh sách địa điểm
+            var places = await _placeService.GetAllPlacesAsync(userId);
             return Ok(places);
         }
+
 
         [HttpGet("get-all-for-landlord/{id}")]
         [Authorize(AuthenticationSchemes = "Bearer", Roles = "Admin, Landlord")]
@@ -70,7 +157,34 @@ namespace HomestayBookingAPI.Controllers
         [HttpGet("get-same-category/{id}")]
         public async Task<ActionResult<List<PlaceDTO>>> GetSameCategoryPlaces(int id)
         {
-            var sameCategoryPlaces = await _placeService.GetSameCategoryPlaces(id);
+            string userId = null;
+
+            // Kiểm tra header Authorization
+            var authHeader = Request.Headers["Authorization"].ToString();
+            if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer "))
+            {
+                try
+                {
+                    var token = authHeader.Substring("Bearer ".Length).Trim();
+                    var handler = new JwtSecurityTokenHandler();
+                    var jwtToken = handler.ReadJwtToken(token);
+                    userId = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+
+                    if (string.IsNullOrEmpty(userId))
+                    {
+                        _logger.LogDebug("UserId not found in token");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error parsing token, proceeding without userId");
+                }
+            }
+            else
+            {
+                _logger.LogDebug("No valid Bearer token provided");
+            }
+            var sameCategoryPlaces = await _placeService.GetSameCategoryPlaces(id, userId);
             if (sameCategoryPlaces == null || sameCategoryPlaces.Count == 0)
             {
                 return NotFound($"Không tìm thấy danh sách địa điểm cùng loại với Id {id}.");

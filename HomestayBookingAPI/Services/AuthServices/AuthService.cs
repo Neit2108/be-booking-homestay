@@ -25,46 +25,60 @@ namespace HomestayBookingAPI.Services.AuthService
 
         public async Task<ApplicationUser> RegisterUser(RegisterDTO model)
         {
-            var user = new ApplicationUser
+            try
             {
-                FullName = model.FullName,
-                IdentityCard = model.IdentityCard,
-                Email = model.Email,
-                PhoneNumber = model.PhoneNumber,
-                HomeAddress = model.HomeAddress,
-                UserName = model.Username,
-                CreateAt = DateTime.UtcNow,
-            };
-            var result = await _userManager.CreateAsync(user, model.Password);
-            if (result.Succeeded)
-            {
-                await _userManager.AddToRoleAsync(user, "Tenant");
-                await _signInManager.SignInAsync(user, isPersistent: false);
+                var user = new ApplicationUser
+                {
+                    FullName = model.FullName,
+                    IdentityCard = model.IdentityCard,
+                    Email = model.Email,
+                    PhoneNumber = model.PhoneNumber,
+                    HomeAddress = model.HomeAddress,
+                    UserName = model.Username,
+                    CreateAt = DateTime.UtcNow,
+                };
+                var result = await _userManager.CreateAsync(user, model.Password);
+                if (result.Succeeded)
+                {
+                    await _userManager.AddToRoleAsync(user, "Tenant");
+                    await _signInManager.SignInAsync(user, isPersistent: false);
 
-                await _walletService.GetOrCreateWalletAsync(user.Id);
-                return user;
+                    await _walletService.GetOrCreateWalletAsync(user.Id);
+                    return user;
+                }
+                return null;
             }
-            return null;
+            catch (Exception ex)
+            {
+                return null;
+            }
         }
 
         public async Task<LoginReponseDTO> LoginUser(LoginDTO model)
         {
-            bool isEmail = Regex.IsMatch(model.EmailorUsername, @"^[^@\s]+@[^@\s]+\.[^@\s]+$");
-            var user = isEmail
-                ? await _userManager.FindByEmailAsync(model.EmailorUsername)
-                : await _userManager.FindByNameAsync(model.EmailorUsername);
-            if (user == null || !await _userManager.CheckPasswordAsync(user, model.Password))
+            try
+            {
+                bool isEmail = Regex.IsMatch(model.EmailorUsername, @"^[^@\s]+@[^@\s]+\.[^@\s]+$");
+                var user = isEmail
+                    ? await _userManager.FindByEmailAsync(model.EmailorUsername)
+                    : await _userManager.FindByNameAsync(model.EmailorUsername);
+                if (user == null || !await _userManager.CheckPasswordAsync(user, model.Password))
+                {
+                    return null;
+                }
+
+                string token = _jwtService.GenerateSecurityToken(user);
+                return new LoginReponseDTO
+                {
+                    Token = token,
+                    FullName = user.FullName,
+                    AvatarUrl = user.AvatarUrl
+                };
+            }
+            catch (Exception ex)
             {
                 return null;
             }
-
-            string token =  _jwtService.GenerateSecurityToken(user);
-            return new LoginReponseDTO
-            {
-                Token = token,
-                FullName = user.FullName,
-                AvatarUrl = user.AvatarUrl
-            };
         }
 
         public async Task<bool> ChangePasswordAsync(ChangePasswordRequest request)

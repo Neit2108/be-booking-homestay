@@ -4,6 +4,7 @@ using HomestayBookingAPI.Services.BookingServices;
 using HomestayBookingAPI.Services.CommentServices;
 using HomestayBookingAPI.Services.ContactServices;
 using HomestayBookingAPI.Services.EmailServices;
+using HomestayBookingAPI.Services.FavouriteServices;
 using HomestayBookingAPI.Services.ImageServices;
 using HomestayBookingAPI.Services.JwtServices;
 using HomestayBookingAPI.Services.NotifyServices;
@@ -48,6 +49,7 @@ namespace HomestayBookingAPI.Configuration
             services.AddScoped<IPromotionService, PromotionService>();
             services.AddScoped<IWalletService, WalletService>();
             services.AddScoped<ISalesStatisticsService, SalesStatisticsService>();
+            services.AddScoped<IFavouriteService, FavouriteService>();
             services.AddScoped<HttpClient>();
 
             services.AddLogging(logging =>
