@@ -9,5 +9,6 @@
         public string Address { get; set; }
         public double Price { get; set; }
         public int NumOfRating { get; set; }
+        public bool IsFavourite { get; set; }
     }
 }

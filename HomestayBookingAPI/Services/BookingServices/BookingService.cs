@@ -283,6 +283,7 @@ namespace HomestayBookingAPI.Services.BookingServices
 
             // Áp dụng phân trang
             query = query
+                .OrderByDescending(b => b.CreatedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize);
 
@@ -304,6 +305,7 @@ namespace HomestayBookingAPI.Services.BookingServices
                     PaymentStatus = b.PaymentStatus,
                     ImageUrl = b.Place.Images != null && b.Place.Images.Any() ? b.Place.Images.FirstOrDefault().ImageUrl : null
                 })
+                
                 .ToListAsync();
 
             _logger.LogInformation($"Returning {bookings.Count} bookings after applying filters and pagination.");
@@ -341,31 +343,28 @@ namespace HomestayBookingAPI.Services.BookingServices
         public async Task<IEnumerable<BookingResponse>> GetBookingsByUserIdAsync(string userId)
         {
             var bookings = await _context.Bookings
-                        .Include(b => b.Place)
-                        .Where(b => b.UserId == userId)
-                        .GroupJoin(_context.Places,
-                            b => b.PlaceId,
-                            p => p.Id,
-                            (b, p) => new { Booking = b, Places = p }) 
-                        .SelectMany(x => x.Places.DefaultIfEmpty(),
-                            (x, p) => new BookingResponse
-                            {
-                                Id = x.Booking.Id,
-                                UserId = x.Booking.UserId,
-                                PlaceId = x.Booking.PlaceId,
-                                PlaceName = x.Booking.Place.Name,
-                                PlaceAddress = x.Booking.Place.Address,
-                                StartDate = x.Booking.StartDate,
-                                EndDate = x.Booking.EndDate,
-                                NumberOfGuests = x.Booking.NumberOfGuests,
-                                TotalPrice = x.Booking.TotalPrice,
-                                Status = x.Booking.Status,
-                                PaymentStatus = x.Booking.PaymentStatus,
-                                ImageUrl = p != null && p.Images != null && p.Images.Any()
-                                    ? p.Images.FirstOrDefault().ImageUrl
-                                    : null 
-                            }) 
-                        .ToListAsync();
+                .Where(b => b.UserId == userId)
+                .Include(b => b.Place)
+                    .ThenInclude(p => p.Images)
+                .OrderByDescending(b => b.CreatedAt) // ✅ Mới nhất trước
+                .Select(b => new BookingResponse
+                {
+                    Id = b.Id,
+                    UserId = b.UserId,
+                    PlaceId = b.PlaceId,
+                    PlaceName = b.Place.Name,
+                    PlaceAddress = b.Place.Address,
+                    StartDate = b.StartDate,
+                    EndDate = b.EndDate,
+                    NumberOfGuests = b.NumberOfGuests,
+                    TotalPrice = b.TotalPrice,
+                    Status = b.Status,
+                    PaymentStatus = b.PaymentStatus,
+                    ImageUrl = b.Place.Images != null && b.Place.Images.Any()
+                        ? b.Place.Images.FirstOrDefault().ImageUrl
+                        : null
+                })
+                .ToListAsync();
 
             if (!bookings.Any())
             {
@@ -374,6 +373,7 @@ namespace HomestayBookingAPI.Services.BookingServices
 
             return bookings;
         }
+
 
         public async Task<IEnumerable<BookingResponse>> GetBookingsByLandlordIdAsync(string landlordId)
         {
@@ -385,6 +385,7 @@ namespace HomestayBookingAPI.Services.BookingServices
                 p => p.Id,
                 (b, p) => new { Booking = b, Place = p }
             )
+            .OrderByDescending(x => x.Booking.CreatedAt)
             .GroupJoin(
                 _context.PlaceImages,
                 bp => bp.Place.Id,
@@ -431,6 +432,7 @@ namespace HomestayBookingAPI.Services.BookingServices
                     p => p.Id,
                     (b, p) => new { Booking = b, Place = p }
                 )
+                .OrderByDescending(x => x.Booking.CreatedAt)
                 .GroupJoin(
                     _context.PlaceImages.Where(pi => pi.PlaceId == placeId).Take(1),
                     bp => bp.Place.Id,
@@ -455,6 +457,7 @@ namespace HomestayBookingAPI.Services.BookingServices
                         ImageUrl = img != null ? img.ImageUrl : null
                     }
                 )
+                
                 .ToListAsync();
 
             if (!bookings.Any())

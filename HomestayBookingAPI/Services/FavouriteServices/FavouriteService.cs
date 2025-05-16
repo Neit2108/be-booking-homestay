@@ -109,7 +109,8 @@ namespace HomestayBookingAPI.Services.FavouriteServices
                         Rating = result.place.Rating,
                         Address = result.place.Address,
                         Price = result.place.Price,
-                        NumOfRating = result.place.NumOfRating
+                        NumOfRating = result.place.NumOfRating,
+                        IsFavourite = true
                     })
                     .ToListAsync();
 
