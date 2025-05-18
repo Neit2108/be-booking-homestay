@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using HomestayBookingAPI.DTOs.Payment;
 using HomestayBookingAPI.Models.Enum;
+using HomestayBookingAPI.Models;
 
 namespace HomestayBookingAPI.Controllers
 {
@@ -67,6 +68,48 @@ namespace HomestayBookingAPI.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Lỗi khi tạo yêu cầu nạp tiền");
+                return StatusCode(500, new { message = "Đã xảy ra lỗi: " + ex.Message });
+            }
+        }
+
+        [HttpPost("withdraw")]
+        public async Task<IActionResult> Withdraw([FromBody] WalletWithdrawRequest request)
+        {
+            try
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                var hasPin = await _walletService.HasSetPinAsync(userId);
+                if (!hasPin)
+                {
+                    return BadRequest(new { message = "Bạn chưa thiết lập mã PIN cho ví. Vui lòng thiết lập PIN trước khi thanh toán" });
+                }
+
+                bool isPinValid = await _walletService.VerifyPinAsync(userId, request.Pin);
+                if (!isPinValid)
+                {
+                    return BadRequest(new { message = "Mã PIN không chính xác" });
+                }
+
+                var hasEnoughFunds = await _walletService.HasSufficientFundsAsync(userId, request.Amount);
+                if (!hasEnoughFunds)
+                {
+                    return BadRequest(new { message = "Số dư ví không đủ để rút" });
+                }
+
+                await _walletService.AddTransactionAsync(
+                    userId,
+                    request.Amount,
+                    TransactionType.Withdrawal,
+                    $"Rút tiền về ví"
+                );
+
+                return Ok(new { message = "Yêu cầu rút tiền đã được gửi thành công" });
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi gửi yêu cầu rút tiền");
                 return StatusCode(500, new { message = "Đã xảy ra lỗi: " + ex.Message });
             }
         }

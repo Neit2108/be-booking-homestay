@@ -73,7 +73,9 @@ namespace HomestayBookingAPI.Controllers
                             .Where(ur => ur.UserId == id)
                             .Join(_context.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => r.Name)
                             .ToList(),
-                        createAt = user.CreateAt
+                        createAt = user.CreateAt,
+                        passwordChangeAt = user.PasswordChangeAt,
+                        twoFactor = user.TwoFactorEnabled
                     }
                 });
             }

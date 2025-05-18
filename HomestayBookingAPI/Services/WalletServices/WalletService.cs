@@ -75,6 +75,8 @@ namespace HomestayBookingAPI.Services.WalletServices
                             wallet.Balance += amount;
                             break;
                         case TransactionType.Payment:
+                            wallet.Balance -= amount;
+                            break;
                         case TransactionType.Withdrawal:
                             wallet.Balance -= amount;
                             break;

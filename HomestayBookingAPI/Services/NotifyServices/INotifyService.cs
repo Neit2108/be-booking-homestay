@@ -10,6 +10,7 @@ namespace HomestayBookingAPI.Services.NotifyServices
         Task CreatePaymentSuccessNotificationAsync(Booking booking);
         Task CreatePaymentFailureNotificationAsync(Booking booking);
         Task CreateWalletTransactionNotificationAsync(WalletTransaction transaction);
+        Task CreateForgotPasswordNotificationAsync(string email, string newPassword);
 
     }
 }

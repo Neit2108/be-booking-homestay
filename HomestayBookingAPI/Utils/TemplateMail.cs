@@ -2,11 +2,95 @@
 using HomestayBookingAPI.Data;
 using HomestayBookingAPI.Models;
 using HomestayBookingAPI.Models.Enum;
+using Microsoft.VisualStudio.Web.CodeGenerators.Mvc.Templates.BlazorIdentity.Pages.Manage;
 
 namespace HomestayBookingAPI.Utils
 {
     public class TemplateMail
     {
+        public static string OTPTwoFactor(string otp)
+        {
+            return $@"
+        <html>
+        <head>
+            <style>
+                body {{ font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f6f8; color: #222; }}
+                .container {{ max-width: 500px; margin: 40px auto; padding: 30px 30px 24px 30px; background: #fff; border-radius: 10px; box-shadow: 0 3px 12px rgba(0,0,0,0.09); }}
+                h2 {{ color: #007bff; margin-bottom: 14px; }}
+                .password-block {{ font-size: 24px; padding: 14px 0; margin-bottom: 18px; background: #f0f7ff; border-radius: 5px; text-align: center; letter-spacing: 1px; font-weight: bold; color: #0056b3; }}
+                .btn {{ display: inline-block; margin-top: 18px; padding: 10px 22px; background: #007bff; color: #fff; text-decoration: none; border-radius: 5px; font-weight: 500; }}
+                p {{ margin-bottom: 12px; }}
+            </style>
+        </head>
+        <body>
+            <div class=""container"">
+                <h2>Xác thực đăng nhập</h2>
+                <p>Xin chào Quý khách,</p>
+                <div class=""password-block"">Mã xác thực đăng nhập: <span style=""font-family:monospace;"">{otp}</span></div>
+                <p>Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email.</p>
+                <p style=""color:#888; font-size:13px;"">Trân trọng,<br>Đội ngũ hỗ trợ</p>
+            </div>
+        </body>
+        </html>
+    ";
+        }
+
+        public static string OTPEnableTwoFactor(string otp)
+        {
+            return $@"
+        <html>
+        <head>
+            <style>
+                body {{ font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f6f8; color: #222; }}
+                .container {{ max-width: 500px; margin: 40px auto; padding: 30px 30px 24px 30px; background: #fff; border-radius: 10px; box-shadow: 0 3px 12px rgba(0,0,0,0.09); }}
+                h2 {{ color: #007bff; margin-bottom: 14px; }}
+                .password-block {{ font-size: 24px; padding: 14px 0; margin-bottom: 18px; background: #f0f7ff; border-radius: 5px; text-align: center; letter-spacing: 1px; font-weight: bold; color: #0056b3; }}
+                .btn {{ display: inline-block; margin-top: 18px; padding: 10px 22px; background: #007bff; color: #fff; text-decoration: none; border-radius: 5px; font-weight: 500; }}
+                p {{ margin-bottom: 12px; }}
+            </style>
+        </head>
+        <body>
+            <div class=""container"">
+                <h2>Mã xác thực bật bảo mật 2 lớp</h2>
+                <p>Xin chào Quý khách,</p>
+                <div class=""password-block"">Mã xác thực : <span style=""font-family:monospace;"">{otp}</span></div>
+                <p>Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email.</p>
+                <p style=""color:#888; font-size:13px;"">Trân trọng,<br>Đội ngũ hỗ trợ</p>
+            </div>
+        </body>
+        </html>
+    ";
+        }
+
+
+        public static string ForgotPasswordEmail(string password, string fullName, string url)
+        {
+            return $@"
+        <html>
+        <head>
+            <style>
+                body {{ font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f6f8; color: #222; }}
+                .container {{ max-width: 500px; margin: 40px auto; padding: 30px 30px 24px 30px; background: #fff; border-radius: 10px; box-shadow: 0 3px 12px rgba(0,0,0,0.09); }}
+                h2 {{ color: #007bff; margin-bottom: 14px; }}
+                .password-block {{ font-size: 18px; padding: 14px 0; margin-bottom: 18px; background: #f0f7ff; border-radius: 5px; text-align: center; letter-spacing: 1px; font-weight: bold; color: #0056b3; }}
+                .btn {{ display: inline-block; margin-top: 18px; padding: 10px 22px; background: #007bff; color: #fff; text-decoration: none; border-radius: 5px; font-weight: 500; }}
+                p {{ margin-bottom: 12px; }}
+            </style>
+        </head>
+        <body>
+            <div class=""container"">
+                <h2>Khôi phục mật khẩu thành công</h2>
+                <p>Xin chào {fullName ?? "Quý khách"},</p>
+                <p>Bạn vừa yêu cầu khôi phục mật khẩu cho tài khoản của mình.</p>
+                <div class=""password-block"">Mật khẩu mới của bạn: <span style=""font-family:monospace;"">{password}</span></div>
+                <p>Vui lòng <a href=""{url}"" class=""btn"">Đăng nhập ngay</a> và đổi lại mật khẩu để bảo mật tài khoản.</p>
+                <p>Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email.</p>
+                <p style=""color:#888; font-size:13px;"">Trân trọng,<br>Đội ngũ hỗ trợ</p>
+            </div>
+        </body>
+        </html>
+    ";
+        }
         public static string BookingConfirmationForCustomer(Booking booking, string url)
         {
             return $@"

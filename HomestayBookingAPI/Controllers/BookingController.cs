@@ -24,6 +24,7 @@ namespace HomestayBookingAPI.Controllers
         private readonly ILogger<BookingController> _logger;
         private readonly IWalletService _walletService;
         private readonly INotifyService _notifyService;
+        private double DiscountForPaymentWithWallet;
 
         public BookingController(IBookingService bookingService, ApplicationDbContext context, IPlaceService placeService, ILogger<BookingController> logger, IWalletService walletService, INotifyService notifyService)
         {
@@ -33,6 +34,7 @@ namespace HomestayBookingAPI.Controllers
             _logger = logger;
             _walletService = walletService;
             _notifyService = notifyService;
+            DiscountForPaymentWithWallet = 0.9;
         }
 
         [HttpGet("all-bookings")]
@@ -310,7 +312,7 @@ namespace HomestayBookingAPI.Controllers
                 // Thực hiện thanh toán
                 await _walletService.AddTransactionAsync(
                     userId,
-                    booking.TotalPrice,
+                    booking.TotalPrice*DiscountForPaymentWithWallet,
                     TransactionType.Payment,
                     $"Thanh toán đơn đặt phòng #{bookingId}",
                     bookingId

@@ -28,6 +28,37 @@ namespace HomestayBookingAPI.Services.NotifyServices
             _backgroundJobClient = backgroundJobClient;
         }
 
+        public async Task CreateForgotPasswordNotificationAsync(string email, string newPassword)
+        {
+            try
+            {
+                if (email == null)
+                {
+                    throw new Exception("Email không được null");
+                }
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+                var token = _jwtService.GenerateActionToken(user.Id, NotificationType.PasswordReset.ToString(), 111111, "Tenant");
+                var forgotNotify = new Notification
+                {
+                    RecipientId = email,
+                    SenderId = "system",
+                    Type = NotificationType.PasswordReset,
+                    Title = "Quên mật khẩu",
+                    Message = $"Mật khẩu mới của bạn là: {newPassword}",
+                    Url = $"{_baseUrl}/auth/verify-action/{token}",
+                    Status = NotificationStatus.Pending,
+                };
+                var emailTemplate = TemplateMail.ForgotPasswordEmail(newPassword, user.FullName, forgotNotify.Url);
+                var jobId = _backgroundJobClient.Enqueue(() => _emailService.SendEmailAsync(email, "Cấp lại mật khẩu mới", emailTemplate));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi tạo thông báo");
+                throw new Exception("Không thể tạo thông báo quên mật khẩu", ex);
+            }
+        }
+
+
         public async Task CreateNewBookingNotificationAsync(Booking booking, bool sendEmail = true)
         {
             var customer = await _context.Users.FindAsync(booking.UserId);
