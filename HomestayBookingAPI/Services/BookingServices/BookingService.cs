@@ -8,6 +8,9 @@ using HomestayBookingAPI.Services.PlaceServices;
 using HomestayBookingAPI.Services.UserServices;
 using HomestayBookingAPI.Services.VoucherServices;
 using Microsoft.EntityFrameworkCore;
+using OfficeOpenXml.Style;
+using OfficeOpenXml;
+using System.Drawing;
 using System.Security.Claims;
 
 namespace HomestayBookingAPI.Services.BookingServices
@@ -40,7 +43,7 @@ namespace HomestayBookingAPI.Services.BookingServices
             {
                 numberOfDays = 1;
             }
-                
+
             if (numberOfDays <= 0)
             {
                 throw new ArgumentException("End date must be after start date");
@@ -50,10 +53,10 @@ namespace HomestayBookingAPI.Services.BookingServices
 
 
             var pricePerNight = place.Price;
-            
+
             var totalPrice = pricePerNight * numberOfDays;
-            
-            if(bookingRequest.NumberOfGuests >= 3)
+
+            if (bookingRequest.NumberOfGuests >= 3)
             {
                 totalPrice += totalPrice * 0.3;
             }
@@ -62,7 +65,7 @@ namespace HomestayBookingAPI.Services.BookingServices
                 totalPrice = await _voucherService.ApplyVoucherAsync(bookingRequest.Voucher, totalPrice);
                 _logger.LogDebug("Voucher được dùng : " + bookingRequest.Voucher);
             }
-            
+
             return totalPrice;
 
         }
@@ -86,12 +89,12 @@ namespace HomestayBookingAPI.Services.BookingServices
 
                 var start = startDate.Date;
                 var end = endDate.Date;
-   
+
                 var unavailableDays = await _context.PlaceAvailables
                     .Where(pa => pa.PlaceId == placeId &&
                                  pa.Date >= start &&
                                  pa.Date <= end &&
-                                 !pa.IsAvailable) 
+                                 !pa.IsAvailable)
                     .AnyAsync();
 
                 if (unavailableDays)
@@ -171,7 +174,7 @@ namespace HomestayBookingAPI.Services.BookingServices
                 var updates = new List<PlaceAvailable>();
                 foreach (var date in dateRange)
                 {
-                    if (placeAvailables.TryGetValue(date, out var existing)) 
+                    if (placeAvailables.TryGetValue(date, out var existing))
                     {
                         existing.IsAvailable = false;
                     }
@@ -251,13 +254,10 @@ namespace HomestayBookingAPI.Services.BookingServices
             int page = 1,
             int pageSize = 10)
         {
-            // Bắt đầu truy vấn
             var query = _context.Bookings.AsQueryable();
 
-            // Áp dụng bộ lọc nếu có
             if (!string.IsNullOrEmpty(status))
             {
-                // Chuyển status từ string sang enum để lọc
                 if (Enum.TryParse<BookingStatus>(status, true, out var statusEnum))
                 {
                     query = query.Where(b => b.Status == statusEnum);
@@ -265,7 +265,6 @@ namespace HomestayBookingAPI.Services.BookingServices
                 else
                 {
                     _logger.LogWarning($"Invalid status value: {status}");
-                    // Có thể throw exception hoặc bỏ qua bộ lọc
                 }
             }
             if (startDate.HasValue)
@@ -277,17 +276,14 @@ namespace HomestayBookingAPI.Services.BookingServices
                 query = query.Where(b => b.EndDate <= endDate.Value);
             }
 
-            // Tính tổng số bản ghi
             int totalRecords = await query.CountAsync();
             _logger.LogInformation($"Found {totalRecords} bookings before pagination.");
 
-            // Áp dụng phân trang
             query = query
                 .OrderByDescending(b => b.CreatedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize);
 
-            // Truy vấn và ánh xạ dữ liệu
             var bookings = await query
                 .Include(b => b.Place)
                 .Select(b => new BookingResponse
@@ -305,7 +301,7 @@ namespace HomestayBookingAPI.Services.BookingServices
                     PaymentStatus = b.PaymentStatus,
                     ImageUrl = b.Place.Images != null && b.Place.Images.Any() ? b.Place.Images.FirstOrDefault().ImageUrl : null
                 })
-                
+
                 .ToListAsync();
 
             _logger.LogInformation($"Returning {bookings.Count} bookings after applying filters and pagination.");
@@ -346,7 +342,7 @@ namespace HomestayBookingAPI.Services.BookingServices
                 .Where(b => b.UserId == userId)
                 .Include(b => b.Place)
                     .ThenInclude(p => p.Images)
-                .OrderByDescending(b => b.CreatedAt) // ✅ Mới nhất trước
+                .OrderByDescending(b => b.CreatedAt)
                 .Select(b => new BookingResponse
                 {
                     Id = b.Id,
@@ -375,49 +371,56 @@ namespace HomestayBookingAPI.Services.BookingServices
         }
 
 
-        public async Task<IEnumerable<BookingResponse>> GetBookingsByLandlordIdAsync(string landlordId)
+        public async Task<IEnumerable<BookingResponse>> GetBookingsByLandlordIdAsync(
+    string landlordId,
+    DateTime? startDate = null,
+    DateTime? endDate = null)
         {
-            var bookings = await _context.Bookings
-            .AsNoTracking()
-            .Join(
-                _context.Places.Where(p => p.OwnerId == landlordId),
-                b => b.PlaceId,
-                p => p.Id,
-                (b, p) => new { Booking = b, Place = p }
-            )
-            .OrderByDescending(x => x.Booking.CreatedAt)
-            .GroupJoin(
-                _context.PlaceImages,
-                bp => bp.Place.Id,
-                img => img.PlaceId,
-                (bp, images) => new { bp.Booking, bp.Place, Images = images }
-            )
-            .SelectMany(
-                x => x.Images.Take(1).DefaultIfEmpty(),
-                (x, img) => new BookingResponse
-                {
-                    Id = x.Booking.Id,
-                    UserId = x.Booking.UserId,
-                    PlaceId = x.Booking.PlaceId,
-                    PlaceName = x.Place.Name,
-                    PlaceAddress = x.Place.Address,
-                    StartDate = x.Booking.StartDate,
-                    EndDate = x.Booking.EndDate,
-                    NumberOfGuests = x.Booking.NumberOfGuests,
-                    TotalPrice = x.Booking.TotalPrice,
-                    Status = x.Booking.Status,
-                    PaymentStatus = x.Booking.PaymentStatus,
-                    ImageUrl = img != null ? img.ImageUrl : null
-                }
-            )
-            .ToListAsync();
+            var query = from b in _context.Bookings.AsNoTracking()
+                        join p in _context.Places.AsNoTracking().Where(x => x.OwnerId == landlordId)
+                            on b.PlaceId equals p.Id
+                        select new { Booking = b, Place = p };
 
-            if (!bookings.Any())
+            if (startDate.HasValue)
+                query = query.Where(x => x.Booking.StartDate >= startDate.Value);
+
+            if (endDate.HasValue)
+                query = query.Where(x => x.Booking.EndDate <= endDate.Value);
+
+            var list = await query
+                .OrderByDescending(x => x.Booking.CreatedAt)
+                .GroupJoin(
+                    _context.PlaceImages.AsNoTracking(),
+                    bp => bp.Place.Id,
+                    img => img.PlaceId,
+                    (bp, images) => new { bp.Booking, bp.Place, Images = images }
+                )
+                .SelectMany(
+                    x => x.Images.Take(1).DefaultIfEmpty(),
+                    (x, img) => new BookingResponse
+                    {
+                        Id = x.Booking.Id,
+                        UserId = x.Booking.UserId,
+                        PlaceId = x.Booking.PlaceId,
+                        PlaceName = x.Place.Name,
+                        PlaceAddress = x.Place.Address,
+                        StartDate = x.Booking.StartDate,
+                        EndDate = x.Booking.EndDate,
+                        NumberOfGuests = x.Booking.NumberOfGuests,
+                        TotalPrice = x.Booking.TotalPrice,
+                        Status = x.Booking.Status,
+                        PaymentStatus = x.Booking.PaymentStatus,
+                        ImageUrl = img != null ? img.ImageUrl : null
+                    }
+                )
+                .ToListAsync();
+
+            if (!list.Any())
             {
                 _logger.LogInformation("No bookings found for landlord {landlordId}", landlordId);
             }
 
-            return bookings;
+            return list;
         }
 
         public async Task<IEnumerable<BookingResponse>> GetBookingsByPlaceIdAsync(int placeId)
@@ -457,7 +460,7 @@ namespace HomestayBookingAPI.Services.BookingServices
                         ImageUrl = img != null ? img.ImageUrl : null
                     }
                 )
-                
+
                 .ToListAsync();
 
             if (!bookings.Any())
@@ -491,7 +494,7 @@ namespace HomestayBookingAPI.Services.BookingServices
                     _logger.LogWarning("Booking with ID {BookingId} not found for status update", id);
                     return false;
                 }
-                
+
                 if (!IsValidStatusTransition(booking.Status, status, currentRole))
                 {
                     _logger.LogWarning("Invalid status transition from {CurrentStatus} to {NewStatus} for booking {BookingId}", booking.Status, status, id);
@@ -522,7 +525,7 @@ namespace HomestayBookingAPI.Services.BookingServices
                     {
                         foreach (var pa in placeAvailables)
                         {
-                            if (!pa.IsAvailable) 
+                            if (!pa.IsAvailable)
                             {
                                 pa.IsAvailable = true;
                             }
@@ -565,6 +568,197 @@ namespace HomestayBookingAPI.Services.BookingServices
                 (BookingStatus.Confirmed, BookingStatus.Cancelled) => role == "Admin",
                 _ => false
             };
+        }
+
+        public async Task<string> ExportBookingsAsync(List<BookingResponse> bookings, string filePath, string exportedBy = "Admin")
+        {
+            ExcelPackage.License.SetNonCommercialPersonal("HomiesStay");
+            using (var package = new ExcelPackage())
+            {
+                var ws = package.Workbook.Worksheets.Add("Bookings");
+
+                int colCount = 13;
+                int dataStartRow = 5;
+
+                var logoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "exports", "favicon.png");
+                if (File.Exists(logoPath))
+                {
+                    var pic = ws.Drawings.AddPicture("Logo", new FileInfo(logoPath));
+                    pic.SetPosition(0, 0, 0, 0);
+                    pic.SetSize(90, 90);
+                }
+                ws.Cells[1, 2, 2, colCount].Merge = true;
+                ws.Cells[1, 2].Value = "BÁO CÁO DANH SÁCH ĐẶT PHÒNG HOMESTAY";
+                ws.Cells[1, 2].Style.Font.Size = 22;
+                ws.Cells[1, 2].Style.Font.Bold = true;
+                ws.Cells[1, 2].Style.Font.Color.SetColor(Color.FromArgb(51, 102, 204));
+                ws.Cells[1, 2].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                ws.Cells[1, 2].Style.VerticalAlignment = ExcelVerticalAlignment.Center;
+                ws.Row(1).Height = 45;
+
+                ws.Cells[2, 2].Value = $"Ngày xuất: {DateTime.Now:dd/MM/yyyy HH:mm:ss}   -   Người xuất: {exportedBy}";
+                ws.Cells[2, 2].Style.Font.Size = 12;
+                ws.Cells[2, 2].Style.Font.Italic = true;
+                ws.Cells[2, 2].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+
+                string[] headers = {
+            "Mã Đặt Chỗ", "Họ Tên", "CCCD", "Email", "SĐT",
+            "Tên Homestay", "Địa Chỉ", "Bắt Đầu", "Kết Thúc",
+            "Số Khách", "Tổng Tiền (VNĐ)", "Trạng Thái Đặt", "Thanh Toán"
+        };
+                Color[] headerColors = {
+            Color.FromArgb(66, 133, 244),
+            Color.FromArgb(219, 68, 55),
+            Color.FromArgb(244, 180, 0),
+            Color.FromArgb(15, 157, 88),
+            Color.FromArgb(255, 128, 0),
+            Color.FromArgb(102, 0, 204),
+            Color.FromArgb(0, 153, 255),
+            Color.FromArgb(118, 255, 3),
+            Color.FromArgb(255, 230, 128),
+            Color.FromArgb(255, 102, 178),
+            Color.FromArgb(0, 204, 153),
+            Color.FromArgb(255, 193, 7),
+            Color.FromArgb(76, 175, 80)
+        };
+                for (int i = 0; i < headers.Length; i++)
+                {
+                    ws.Cells[dataStartRow, i + 1].Value = headers[i];
+                    ws.Cells[dataStartRow, i + 1].Style.Font.Bold = true;
+                    ws.Cells[dataStartRow, i + 1].Style.Font.Size = 12;
+                    ws.Cells[dataStartRow, i + 1].Style.Font.Color.SetColor(Color.White);
+                    ws.Cells[dataStartRow, i + 1].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                    ws.Cells[dataStartRow, i + 1].Style.Fill.BackgroundColor.SetColor(headerColors[i]);
+                    ws.Cells[dataStartRow, i + 1].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                    ws.Cells[dataStartRow, i + 1].Style.VerticalAlignment = ExcelVerticalAlignment.Center;
+                    ws.Cells[dataStartRow, i + 1].Style.Border.BorderAround(ExcelBorderStyle.Thick, Color.Black);
+                }
+
+                int row = dataStartRow + 1;
+                foreach (var b in bookings)
+                {
+                    var user = await _userService.GetUserByID(b.UserId);
+                    if (user == null)
+                    {
+                        ws.Cells[row, 2].Value = "Không xác định";
+                        ws.Cells[row, 3].Value = "N/A";
+                        ws.Cells[row, 4].Value = "N/A";
+                        ws.Cells[row, 5].Value = "N/A";
+                    }
+                    else
+                    {
+                        ws.Cells[row, 2].Value = user.FullName;
+                        ws.Cells[row, 3].Value = user.IdentityCard;
+                        ws.Cells[row, 4].Value = user.Email;
+                        ws.Cells[row, 5].Value = user.PhoneNumber;
+                    }
+
+                    ws.Cells[row, 1].Value = b.Id;
+                    ws.Cells[row, 6].Value = b.PlaceName;
+                    ws.Cells[row, 7].Value = b.PlaceAddress;
+                    ws.Cells[row, 8].Value = b.StartDate.ToString("dd/MM/yyyy");
+                    ws.Cells[row, 9].Value = b.EndDate.ToString("dd/MM/yyyy");
+                    ws.Cells[row, 10].Value = b.NumberOfGuests;
+                    ws.Cells[row, 11].Value = b.TotalPrice;
+
+                    ws.Cells[row, 11].Style.Numberformat.Format = "#,##0 [$₫-421]";
+
+                    var statusCell = ws.Cells[row, 12];
+                    string status = b.Status.ToString().ToLower() ?? "";
+                    if (status.Contains("pending"))
+                    {
+                        statusCell.Value = "⏳ " + b.Status;
+                        statusCell.Style.Font.Color.SetColor(Color.Orange);
+                        statusCell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                        statusCell.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(255, 243, 205));
+                    }
+                    else if (status.Contains("completed"))
+                    {
+                        statusCell.Value = "✅ " + b.Status;
+                        statusCell.Style.Font.Color.SetColor(Color.SeaGreen);
+                        statusCell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                        statusCell.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(232, 245, 233));
+                    }
+                    else if (status.Contains("confirmed"))
+                    {
+                        statusCell.Value = b.Status;
+                        statusCell.Style.Font.Color.SetColor(Color.SeaGreen);
+                        statusCell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                        statusCell.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(232, 245, 233));
+                    }
+                    else if (status.Contains("cancelled"))
+                    {
+                        statusCell.Value = "❌ " + b.Status;
+                        statusCell.Style.Font.Color.SetColor(Color.Red);
+                        statusCell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                        statusCell.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(255, 228, 225));
+                    }
+                    else
+                    {
+                        statusCell.Value = b.Status;
+                    }
+                    statusCell.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+
+                    var paymentCell = ws.Cells[row, 13];
+                    string payment = b.PaymentStatus.ToString().ToLower() ?? "";
+                    if (payment.Contains("paid"))
+                    {
+                        paymentCell.Value = "💰 Đã TT";
+                        paymentCell.Style.Font.Color.SetColor(Color.SeaGreen);
+                        paymentCell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                        paymentCell.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(200, 255, 224));
+                    }
+                    else if (payment.Contains("unpaid"))
+                    {
+                        paymentCell.Value = "🕓 Chưa TT";
+                        paymentCell.Style.Font.Color.SetColor(Color.DarkOrange);
+                        paymentCell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                        paymentCell.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(255, 249, 196));
+                    }
+                    else if (payment.Contains("fail"))
+                    {
+                        paymentCell.Value = "❗Lỗi TT";
+                        paymentCell.Style.Font.Color.SetColor(Color.Red);
+                        paymentCell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                        paymentCell.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(255, 205, 210));
+                    }
+                    else
+                    {
+                        paymentCell.Value = b.PaymentStatus;
+                    }
+                    paymentCell.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+
+                    if (row % 2 == 0)
+                    {
+                        ws.Cells[row, 1, row, colCount].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                        ws.Cells[row, 1, row, colCount].Style.Fill.BackgroundColor.SetColor(Color.FromArgb(243, 246, 249));
+                    }
+
+
+                    ws.Cells[row, 1, row, colCount].Style.Border.BorderAround(ExcelBorderStyle.Dotted, Color.Gray);
+
+                    row++;
+                }
+
+                ws.Cells[dataStartRow, 1, row - 1, colCount].AutoFilter = true;
+                ws.Cells[ws.Dimension.Address].AutoFitColumns();
+                ws.View.FreezePanes(dataStartRow + 1, 1);
+
+                ws.Cells[$"A{row + 2}:M{row + 2}"].Merge = true;
+                ws.Cells[$"A{row + 2}"].Value = "Ghi chú: File xuất từ hệ thống HomiesStay. Vui lòng không chỉnh sửa dữ liệu trực tiếp trên file này.";
+                ws.Cells[$"A{row + 2}"].Style.Font.Italic = true;
+                ws.Cells[$"A{row + 2}"].Style.Font.Size = 11;
+                ws.Cells[$"A{row + 2}"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Left;
+                ws.Cells[$"A{row + 2}"].Style.Font.Color.SetColor(Color.Gray);
+
+                ws.Cells[$"M{row + 5}"].Value = "HomiesStay.vn";
+                ws.Cells[$"M{row + 5}"].Style.Font.Size = 18;
+                ws.Cells[$"M{row + 5}"].Style.Font.Color.SetColor(Color.FromArgb(232, 234, 246));
+                ws.Cells[$"M{row + 5}"].Style.Font.Italic = true;
+
+                await package.SaveAsAsync(new FileInfo(filePath));
+            }
+            return filePath;
         }
     }
 }

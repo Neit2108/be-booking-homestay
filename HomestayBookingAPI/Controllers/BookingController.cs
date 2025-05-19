@@ -334,5 +334,47 @@ namespace HomestayBookingAPI.Controllers
                 return StatusCode(500, new { message = "Đã xảy ra lỗi: " + ex.Message });
             }
         }
+
+        [HttpGet("export-bookings")]
+        [Authorize(AuthenticationSchemes = "Bearer")]
+        public async Task<IActionResult> ExportBookingsToExcel(
+    [FromQuery] DateTime? startDate,
+    [FromQuery] DateTime? endDate)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var isAdmin = User.FindFirstValue(ClaimTypes.Role).Contains("Admin");
+            var userName = User.FindFirstValue(ClaimTypes.Name);
+
+            var bookings = new List<BookingResponse>();
+
+            if (isAdmin)
+            {
+                
+                bookings = (await _bookingService.GetAllBookingsAsync(null ,startDate, endDate, 1, int.MaxValue)).ToList();
+            }
+            else
+            {
+                bookings = (await _bookingService.GetBookingsByLandlordIdAsync(userId, startDate, endDate))
+                    .ToList();
+            }
+
+            if (bookings == null || !bookings.Any())
+                return NotFound("Không có dữ liệu để xuất!");
+
+            var exportFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "exports");
+            if (!Directory.Exists(exportFolder)) Directory.CreateDirectory(exportFolder);
+            var fileName = $"Bookings_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+            var filePath = Path.Combine(exportFolder, fileName);
+
+            await _bookingService.ExportBookingsAsync(bookings, filePath, userName);
+
+            var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
+
+
+            return File(fileBytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName);
+        }
+
     }
 }
