@@ -1,4 +1,5 @@
-﻿using HomestayBookingAPI.Models;
+﻿using HomestayBookingAPI.DTOs.Notify;
+using HomestayBookingAPI.Models;
 
 namespace HomestayBookingAPI.Services.NotifyServices
 {
@@ -11,6 +12,7 @@ namespace HomestayBookingAPI.Services.NotifyServices
         Task CreatePaymentFailureNotificationAsync(Booking booking);
         Task CreateWalletTransactionNotificationAsync(WalletTransaction transaction);
         Task CreateForgotPasswordNotificationAsync(string email, string newPassword);
+        Task<IEnumerable<NotifyResponse>> GetAllNotifyByUserId(string userId);
 
     }
 }

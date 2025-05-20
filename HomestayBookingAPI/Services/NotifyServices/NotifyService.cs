@@ -1,5 +1,6 @@
 ﻿using Hangfire;
 using HomestayBookingAPI.Data;
+using HomestayBookingAPI.DTOs.Notify;
 using HomestayBookingAPI.Models;
 using HomestayBookingAPI.Models.Enum;
 using HomestayBookingAPI.Services.EmailServices;
@@ -81,7 +82,7 @@ namespace HomestayBookingAPI.Services.NotifyServices
                 BookingId = booking.Id,
                 Type = NotificationType.ConfirmInfo,
                 Title = "Xác nhận thông tin đặt phòng",
-                Message = $"Your booking request for {place.Name} from {booking.StartDate.ToShortDateString()} to {booking.EndDate.ToShortDateString()} has been submitted.",
+                Message = $"Yêu cầu thuê {place.Name} từ {booking.StartDate.ToShortDateString()} tới {booking.EndDate.ToShortDateString()} đã được gửi.",
                 Url = $"{_baseUrl}/auth/verify-action/{customerToken}",
                 Status = NotificationStatus.Pending,
             };
@@ -414,6 +415,21 @@ namespace HomestayBookingAPI.Services.NotifyServices
             }
             await _context.Notifications.AddAsync(notify);
             await _context.SaveChangesAsync();
+        }
+
+        public async Task<IEnumerable<NotifyResponse>> GetAllNotifyByUserId(string userId)
+        {
+            var notis = await _context.Notifications
+                .Where(n => n.RecipientId == userId)
+                .OrderByDescending(n => n.CreatedAt)
+                .ToListAsync();
+
+            return notis.Select(n => new NotifyResponse
+            {
+                Title = n.Title,
+                Message = n.Message,
+                CreatedAt = n.CreatedAt,
+            }).ToList();
         }
     }
 }
