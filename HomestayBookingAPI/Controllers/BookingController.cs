@@ -76,6 +76,13 @@ namespace HomestayBookingAPI.Controllers
             return Ok(booking);
         }
 
+        [HttpPut("cancel/{id}")]
+        public async Task<IActionResult> CancelBookingAsync(int id)
+        {
+            var res = await _bookingService.UpdateBookingStatusAsync(id, BookingStatus.Cancelled, "Tenant");
+            return Ok(res);
+        } 
+
         [HttpPost("new-booking")]
         [Authorize(AuthenticationSchemes = "Bearer")]
         public async Task<IActionResult> CreateBooking([FromBody] BookingRequest bookingDTO)

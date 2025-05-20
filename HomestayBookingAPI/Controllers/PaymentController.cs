@@ -62,9 +62,6 @@ namespace HomestayBookingAPI.Controllers
                     redirectUrl = $"{vnpayData["VNPay:ReturnUrl"]}?paymentId={response.Id}&status={response.Status}"
                 });
 
-                // Redirect to frontend payment result page
-                //var redirectUrl = $"{vnpayData["vnp_ReturnUrl"]}?paymentId={response.Id}&status={response.Status}";
-                //return Redirect(redirectUrl);
             }
             catch (Exception ex)
             {
