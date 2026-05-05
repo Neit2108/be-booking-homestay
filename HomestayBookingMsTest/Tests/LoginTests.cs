@@ -47,8 +47,8 @@ namespace HomestayBookingMsTest.Tests
         public void Login_With_Valid_Credentials_NavigatesToHomePage()
         {
             loginPage.GoTo();
-            loginPage.EnterUsername("linh.123");
-            loginPage.EnterPassword("Linh@123");
+            loginPage.EnterUsername("customer.test");
+            loginPage.EnterPassword("Customer@123");
             loginPage.ClickLogin();
 
             var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));

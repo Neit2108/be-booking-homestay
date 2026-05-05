@@ -1,4 +1,4 @@
-﻿using Hangfire.Server;
+using Hangfire.Server;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -22,7 +22,7 @@ namespace HomestayBookingAPI.Models
         public int UsageCount { get; set; }
 
         [Required]
-        [Range(0, int.MaxValue)]
+        [Range(0, 1000000)]
         public int MaxUsage { get; set; } = 0;
 
         [Required]

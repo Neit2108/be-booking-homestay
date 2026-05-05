@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace HomestayBookingAPI.Models
@@ -12,7 +12,7 @@ namespace HomestayBookingAPI.Models
         public string UserId { get; set; }
 
         [Required]
-        [Range(0, double.MaxValue)]
+        [Range(0, 1000000000)]
         public double Balance { get; set; } = 0; // Số dư tài khoản, mặc định là 0
         [StringLength(256)]
         public string? PinHash { get; set; }

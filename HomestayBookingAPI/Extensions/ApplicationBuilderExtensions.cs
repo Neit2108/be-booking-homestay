@@ -1,4 +1,4 @@
-﻿using Hangfire;
+using Hangfire;
 using HomestayBookingAPI.Services.BookingLifecycleServices;
 using HomestayBookingAPI.Services.NotifyServices;
 using HomestayBookingAPI.Services.TopRatePlaceServices;
@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Swashbuckle.AspNetCore.SwaggerUI;
 
 namespace HomestayBookingAPI.Extensions
 {
@@ -16,6 +17,12 @@ namespace HomestayBookingAPI.Extensions
             if (env.IsDevelopment())
             {
                 app.MapOpenApi();
+                app.UseSwagger();
+                app.UseSwaggerUI(options =>
+                {
+                    options.SwaggerEndpoint("/openapi/v1.json", "Homestay Booking API V1");
+                    options.RoutePrefix = "swagger";
+                });
             }
 
             app.UseStaticFiles();

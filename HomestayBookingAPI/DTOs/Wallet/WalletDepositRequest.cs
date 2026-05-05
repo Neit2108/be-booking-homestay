@@ -1,11 +1,11 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace HomestayBookingAPI.DTOs.Wallet
 {
     public class WalletDepositRequest
     {
         [Required]
-        [Range(10000, double.MaxValue, ErrorMessage = "Số tiền nạp phải từ 10,000 VNĐ trở lên")]
+        [Range(10000, 1000000000, ErrorMessage = "Số tiền nạp phải từ 10,000 VNĐ trở lên")]
         public double Amount { get; set; }
 
         [Required]

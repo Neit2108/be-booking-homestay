@@ -1,4 +1,4 @@
-﻿using HomestayBookingAPI.Models.Enum;
+using HomestayBookingAPI.Models.Enum;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
@@ -23,7 +23,7 @@ namespace HomestayBookingAPI.Models
         [Range(0, 5)]
         public double Rating { get; set; }
 
-        [Range(0, int.MaxValue)]
+        [Range(0, 1000000)]
         public int NumOfRating { get; set; }
 
         [Column(TypeName = "text")]

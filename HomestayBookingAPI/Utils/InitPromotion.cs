@@ -1,4 +1,4 @@
-﻿using System.Threading;
+using System.Threading;
 using HomestayBookingAPI.Data;
 using HomestayBookingAPI.Models;
 using HomestayBookingAPI.Services.VoucherServices;
@@ -31,7 +31,7 @@ namespace HomestayBookingAPI.Utils
                     Name = "Voucher chào hè",
                     Code = "SUMMER2025",
                     UsageCount = 0,
-                    MaxUsage = int.MaxValue,
+                    MaxUsage = 1000000,
                     Discount = 30,
                     From = currentDate,
                     To = maxDate
@@ -42,7 +42,7 @@ namespace HomestayBookingAPI.Utils
                     Name = "Voucher nhóm",
                     Code = "GROUP2025",
                     UsageCount = 0,
-                    MaxUsage = int.MaxValue,
+                    MaxUsage = 1000000,
                     Discount = 15,
                     From = currentDate,
                     To = maxDate
@@ -53,7 +53,7 @@ namespace HomestayBookingAPI.Utils
                     Name = "Voucher kì nghỉ dài",
                     Code = "LONGSTAY",
                     UsageCount = 0,
-                    MaxUsage = int.MaxValue,
+                    MaxUsage = 1000000,
                     Discount = 25,
                     From = currentDate,
                     To = maxDate

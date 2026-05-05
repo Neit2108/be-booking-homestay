@@ -26,6 +26,15 @@ public class ProfileService_Tests
         _profileService = new ProfileService(_userServiceMock.Object, _userManagerMock.Object);
     }
 
+    /*
+    UpdateProfileAsync :
+        - Đã test user != null và user = null
+        - Đã test cập nhật trường đầy đủ và gọi UpdateAsync
+        -  Đã bao phủ dòng ~100%
+        -  Bao phủ nhánh ~100% 
+*/
+
+
     [Fact] // test method
     public async Task UpdateProfileAsync_UserExists_ReturnsTrue()
     {
